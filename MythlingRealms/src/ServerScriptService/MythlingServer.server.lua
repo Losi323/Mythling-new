@@ -1913,6 +1913,10 @@ vaultRewardRequest.OnInvoke = function(player)
 		return false, "Player data is unavailable."
 	end
 
+	if data.worldsUnlocked < 2 then
+		return false, "Unlock Emberfall before claiming the Forgotten Vault reward."
+	end
+
 	if (data.vaultClaimed or 0) >= 1 then
 		return false, "This vault reward has already been claimed."
 	end
