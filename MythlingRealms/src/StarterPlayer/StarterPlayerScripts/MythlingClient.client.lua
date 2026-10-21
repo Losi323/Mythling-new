@@ -2093,15 +2093,37 @@ local function showQuests()
 	claimButton.Active = questCompleted and not allQuestsComplete
 	claimButton.AutoButtonColor = questCompleted and not allQuestsComplete
 
+	local equippedPetName = getEquippedPet()
+	local equippedLevel = tonumber(currentState.petLevel) or 1
+	local equippedEvolved = currentState.petEvolved == true
+	local canEvolve = currentState.canEvolve == true
+	local evolutionLabel
+	if not equippedPetName then
+		evolutionLabel = "CHOOSE A MYTHLING FIRST"
+	elseif equippedEvolved then
+		evolutionLabel = "MYTHLING ALREADY EVOLVED"
+	elseif equippedLevel < 5 then
+		evolutionLabel = "REACH LEVEL 5 TO EVOLVE"
+	elseif (tonumber(currentState.totalCollected) or 0) < 25 then
+		evolutionLabel = "COLLECT 25 CRYSTALS TO EVOLVE"
+	elseif getCurrency() < (tonumber(currentState.evolutionCost) or 500) then
+		evolutionLabel = "NEED 500 STARSHARDS TO EVOLVE"
+	else
+		evolutionLabel = "EVOLVE EQUIPPED MYTHLING"
+	end
+
 	local evolutionButton = newButton(
 		content,
-		"EVOLVE EQUIPPED PET",
+		evolutionLabel,
 		UDim2.new(1, -8, 0, 42),
 		UDim2.new(),
 		function()
+			if not canEvolve then
+				showToast("Evolution requires level 5, 25 crystals and 500 Starshards.", COLORS.gold)
+				return
+			end
 			local ok = invokeRemote(EvolvePet)
 			if ok then
-				showToast("Evolution request sent")
 				task.delay(0.3, function()
 					requestState()
 					if currentMenu == "Quests" then
@@ -2110,9 +2132,11 @@ local function showQuests()
 				end)
 			end
 		end,
-		COLORS.accent
+		canEvolve and COLORS.accent or COLORS.panelLight
 	)
 	evolutionButton.LayoutOrder = 100
+	evolutionButton.Active = canEvolve
+	evolutionButton.AutoButtonColor = canEvolve
 
 	local worldsUnlocked = tonumber(currentState.worldsUnlocked) or 1
 	local worldUnlockCost = tonumber(currentState.worldUnlockCost) or 1000
@@ -2158,20 +2182,44 @@ local function showQuests()
 	unlockButton.Active = worldsUnlocked < 2 and canUnlockWorld
 	unlockButton.AutoButtonColor = unlockButton.Active
 
+	local upgradeCost = tonumber(currentState.upgradeCost) or 50
+	local canUpgrade = equippedPetName ~= nil
+		and equippedLevel < 50
+		and getCurrency() >= upgradeCost
+	local upgradeLabel
+	if not equippedPetName then
+		upgradeLabel = "CHOOSE A MYTHLING FIRST"
+	elseif equippedLevel >= 50 then
+		upgradeLabel = "MYTHLING LEVEL MAX"
+	elseif getCurrency() < upgradeCost then
+		upgradeLabel = "NEED " .. formatNumber(upgradeCost) .. " STARSHARDS"
+	else
+		upgradeLabel = "BUY UPGRADE · " .. formatNumber(upgradeCost) .. " STARSHARDS"
+	end
+
 	local upgradeButton = newButton(
 		content,
-		"BUY UPGRADE",
+		upgradeLabel,
 		UDim2.new(1, -8, 0, 42),
 		UDim2.new(),
 		function()
+			if not canUpgrade then
+				showToast("Choose a Mythling and have enough Starshards for its next level.", COLORS.gold)
+				return
+			end
 			local ok = invokeRemote(BuyUpgrade)
 			if ok then
-				showToast("Upgrade request sent")
+				task.delay(0.25, function()
+					requestState()
+					if currentMenu == "Quests" then showQuests() end
+				end)
 			end
 		end,
-		COLORS.panelLight
+		canUpgrade and COLORS.accent or COLORS.panelLight
 	)
 	upgradeButton.LayoutOrder = 102
+	upgradeButton.Active = canUpgrade
+	upgradeButton.AutoButtonColor = canUpgrade
 end
 
 --========================================================
