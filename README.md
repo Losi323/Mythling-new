@@ -12,7 +12,7 @@ Mythling Realms is a Roblox collection-and-progression game project built with L
 - A third Forgotten Ruins island with a three-rune vault puzzle and one-time persisted reward.
 - Daily login reward streaks, a daily Starshard wheel, and rotating hourly global events.
 - Server-authoritative four-player parties with timed invitations, accept/decline, leave/disband handling, and cleanup on disconnect.
-- Optional Game Pass support for 2x Starshards and the VIP Aurora Stag companion. Both pass IDs are intentionally set to zero until real passes are created.
+- Optional Game Pass support for 2x Starshards and the VIP Aurora Stag companion, plus three Developer Product Starshard packs with idempotent receipt handling. All purchase IDs are intentionally zero until real products are created.
 - Data normalization, transient save retries, and protections for disconnects during player data loading.
 
 ## Project layout
@@ -35,8 +35,8 @@ Mythling Realms is a Roblox collection-and-progression game project built with L
 ## Important configuration
 
 - DataStore uses MythlingRealms_PlayerData_v1; existing saves are normalized when loaded.
-- Game Pass IDs are in GAMEPASS_IDS near the top of MythlingServer.server.lua; zero means disabled.
-- No developer-product consumables are configured.
+- Game Pass IDs are in GAMEPASS_IDS and consumable product IDs in DEVELOPER_PRODUCTS near the top of MythlingServer.server.lua; zero means disabled.
+- Developer Product receipt handling is implemented, but no consumables are active until real product IDs are configured.
 - Direct pet trading and gifting are intentionally omitted until a transactional inventory-transfer flow can prevent duplication or item loss.
 - The scripts have been statically reviewed in this branch, but they have **not** been compiled or executed in Roblox Studio in this environment. This repository branch is a consolidated implementation candidate, not a verified production release.
 
