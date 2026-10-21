@@ -1293,6 +1293,7 @@ local function createEnemy(name, worldName, position, maxHealth, reward, color)
 		reward = reward,
 		color = color,
 		label = label,
+		damageByUserId = {},
 	}
 
 	return orb
@@ -1382,6 +1383,9 @@ AttackEnemy.OnServerEvent:Connect(function(player)
 	end
 
 	local damage = 8 + data.petLevel * 2 + (data.petEvolved and 10 or 0)
+	targetState.damageByUserId = targetState.damageByUserId or {}
+	targetState.damageByUserId[player.UserId] =
+		(targetState.damageByUserId[player.UserId] or 0) + damage
 	targetState.health = math.max(0, targetState.health - damage)
 
 	if targetState.label and targetState.label.Parent then
@@ -1395,38 +1399,82 @@ AttackEnemy.OnServerEvent:Connect(function(player)
 
 	local enemyName = targetState.name
 	local baseReward = targetState.reward
-	local reward = baseReward
 	local spawnPosition = targetState.spawnPosition
 	local worldName = targetState.worldName
 	local maxHealth = targetState.maxHealth
 	local color = targetState.color
+	local contributionTable = targetState.damageByUserId or {}
 
 	enemyStates[target] = nil
 	target:Destroy()
 
+	-- Share one base reward pool among nearby contributors. This rewards
+	-- cooperation without multiplying the base economy by the group size.
+	local participants = {}
+	local totalDamage = 0
+	for _, contributor in ipairs(Players:GetPlayers()) do
+		local contributed = tonumber(contributionTable[contributor.UserId]) or 0
+		local contributorData = playerData[contributor]
+		local character = contributor.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if contributed > 0 and contributorData and not leavingPlayers[contributor]
+			and root and (root.Position - target.Position).Magnitude <= 60 then
+			table.insert(participants, {
+				player = contributor,
+				data = contributorData,
+				damage = contributed,
+			})
+			totalDamage += contributed
+		end
+	end
+
+	if #participants == 0 then
+		table.insert(participants, { player = player, data = data, damage = 1 })
+		totalDamage = 1
+	end
+
 	local activeEvent = getActiveEvent()
-	if activeEvent.id == "CREATURE_HUNT" then
-		reward = math.floor(baseReward * 1.5)
+	local allocated = 0
+	local killerShareIndex = 1
+	for index, participant in ipairs(participants) do
+		if participant.player == player then
+			killerShareIndex = index
+		end
+		local share = math.floor(baseReward * participant.damage / totalDamage)
+		participant.baseShare = share
+		allocated += share
 	end
-	if hasGamePass(player, "DoubleStarshards") then
-		reward *= 2
-	end
+	participants[killerShareIndex].baseShare += baseReward - allocated
 
-	data.enemiesDefeated = (data.enemiesDefeated or 0) + 1
-	data.starshards += reward
-	local leveledUp = grantCombatXP(data, 40)
-	pushState(player)
+	for _, participant in ipairs(participants) do
+		local contributor = participant.player
+		local contributorData = participant.data
+		local reward = participant.baseShare
+		if activeEvent.id == "CREATURE_HUNT" then
+			reward = math.floor(reward * 1.5)
+		end
+		if hasGamePass(contributor, "DoubleStarshards") then
+			reward *= 2
+		end
 
-	local message = "Defeated " .. enemyName .. "! +" .. reward .. " Starshards."
-	if leveledUp then
-		message ..= " Your Mythling leveled up!"
+		contributorData.enemiesDefeated = (contributorData.enemiesDefeated or 0) + 1
+		contributorData.starshards += reward
+		local xpReward = contributor == player and 40 or 20
+		local leveledUp = grantCombatXP(contributorData, xpReward)
+		pushState(contributor)
+
+		local message = (contributor == player and "Defeated " or "Assisted in defeating ")
+			.. enemyName .. "! +" .. reward .. " Starshards."
+		if leveledUp then
+			message ..= " Your Mythling leveled up!"
+		end
+		notify(contributor, message)
+		task.spawn(savePlayer, contributor)
 	end
-	notify(player, message)
-	task.spawn(savePlayer, player)
 
 	task.delay(12, function()
 		if enemyFolder.Parent then
-			-- Respawn from the base reward so an event bonus never compounds.
+			-- Respawn from base reward so event bonuses never compound.
 			createEnemy(enemyName, worldName, spawnPosition, maxHealth, baseReward, color)
 		end
 	end)
