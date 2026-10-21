@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataStoreService = game:GetService("DataStoreService")
 local MarketplaceService = game:GetService("MarketplaceService")
+local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
 
 local DATASTORE_NAME = "MythlingRealms_PlayerData_v1"
@@ -40,6 +41,20 @@ do
 end
 
 local store = DataStoreService:GetDataStore(DATASTORE_NAME)
+
+-- Server-only handoff used by the Forgotten Ruins map script. Player rewards
+-- remain inside the main data owner, rather than duplicating DataStore writes.
+local vaultRewardRequest = ServerScriptService:FindFirstChild("MythlingVaultReward")
+if vaultRewardRequest and not vaultRewardRequest:IsA("BindableFunction") then
+	vaultRewardRequest:Destroy()
+	vaultRewardRequest = nil
+end
+if not vaultRewardRequest then
+	vaultRewardRequest = Instance.new("BindableFunction")
+	vaultRewardRequest.Name = "MythlingVaultReward"
+	vaultRewardRequest.Parent = ServerScriptService
+end
+
 
 --==================================================
 -- REMOTES
@@ -345,6 +360,13 @@ local QUESTS = {
 		stat = "emberfallCollected",
 	},
 	{
+		title = "Forgotten Vault",
+		description = "Open the vault in Forgotten Ruins",
+		target = 1,
+		reward = 350,
+		stat = "vaultClaimed",
+	},
+	{
 		title = "Guardian Hunter",
 		description = "Defeat 10 creatures",
 		target = 10,
@@ -402,6 +424,7 @@ local function defaultData()
 		emberfallCollected = 0,
 		enemiesDefeated = 0,
 		totalEggsOpened = 0,
+		vaultClaimed = 0,
 		worldsUnlocked = 1,
 		questStage = 1,
 		lastDailyClaimDay = 0,
@@ -540,6 +563,11 @@ local function cloneData(data)
 		totalEggsOpened = math.max(
 			0,
 			math.floor(tonumber(data.totalEggsOpened) or 0)
+		),
+		vaultClaimed = math.clamp(
+			math.floor(tonumber(data.vaultClaimed) or 0),
+			0,
+			1
 		),
 		lastDailyClaimDay = math.max(
 			0,
@@ -726,6 +754,7 @@ local function stateForClient(data, player)
 		enemiesDefeated = data.enemiesDefeated or 0,
 		emberfallCollected = data.emberfallCollected or 0,
 		totalEggsOpened = data.totalEggsOpened or 0,
+		vaultClaimed = data.vaultClaimed or 0,
 		dailyStreak = data.dailyStreak or 0,
 		dailyRewardAvailable = (data.lastDailyClaimDay or 0) < todayDay,
 		dailyRewardStreak = nextDailyStreak,
@@ -1792,6 +1821,25 @@ savePlayer = function(player)
 	end
 
 	return success
+end
+
+vaultRewardRequest.OnInvoke = function(player)
+	local data = playerData[player]
+	if not data or leavingPlayers[player] or player.Parent ~= Players then
+		return false, "Player data is unavailable."
+	end
+
+	if (data.vaultClaimed or 0) >= 1 then
+		return false, "This vault reward has already been claimed."
+	end
+
+	data.vaultClaimed = 1
+	local reward = 500
+	data.starshards += reward
+	pushState(player)
+	notify(player, "Forgotten Vault opened! +" .. reward .. " Starshards.")
+	task.spawn(savePlayer, player)
+	return true, reward
 end
 
 local function loadPlayer(player)
