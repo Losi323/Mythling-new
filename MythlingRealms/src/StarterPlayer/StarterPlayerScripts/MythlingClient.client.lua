@@ -27,6 +27,8 @@ local StateChanged = getRemote("StateChanged")
 local Notify = getRemote("Notify")
 local OpenEgg = getRemote("OpenEgg")
 local EquipPet = getRemote("EquipPet")
+local ClaimDailyReward = getRemote("ClaimDailyReward")
+local AttackEnemy = getRemote("AttackEnemy")
 
 --========================================================
 -- CONFIGURATION
@@ -1311,6 +1313,101 @@ local function showEggShop()
 end
 
 --========================================================
+-- DAILY REWARDS
+--========================================================
+
+local function showDailyReward()
+	openMenu("DailyReward", "DAILY REWARD")
+
+	local available = currentState.dailyRewardAvailable == true
+	local streak = tonumber(currentState.dailyRewardStreak) or 1
+	local reward = tonumber(currentState.dailyRewardAmount) or 100
+	local currentStreak = tonumber(currentState.dailyStreak) or 0
+
+	local intro = newLabel(
+		content,
+		"Log in every day to grow your Starshard reward. The streak is capped at 8 days.",
+		UDim2.new(1, -8, 0, 54),
+		UDim2.new(),
+		13,
+		COLORS.muted
+	)
+	intro.LayoutOrder = 1
+	intro.TextWrapped = true
+	intro.TextYAlignment = Enum.TextYAlignment.Top
+
+	local card = newFrame(
+		content,
+		"DailyRewardCard",
+		UDim2.new(1, -8, 0, 128),
+		UDim2.new(),
+		COLORS.panel
+	)
+	card.LayoutOrder = 2
+	stroke(card, COLORS.gold, 1.5)
+
+	local amountLabel = newLabel(
+		card,
+		available and ("+" .. formatNumber(reward) .. " STARSHARDS") or "REWARD CLAIMED",
+		UDim2.new(1, -20, 0, 34),
+		UDim2.new(0, 10, 0, 14),
+		20,
+		available and COLORS.gold or COLORS.green
+	)
+	amountLabel.TextXAlignment = Enum.TextXAlignment.Center
+	amountLabel.Font = Enum.Font.GothamBlack
+
+	local streakLabel = newLabel(
+		card,
+		"Current streak: " .. currentStreak .. " day(s)\nNext claim streak: " .. streak,
+		UDim2.new(1, -20, 0, 45),
+		UDim2.new(0, 10, 0, 48),
+		13,
+		COLORS.text
+	)
+	streakLabel.TextWrapped = true
+	streakLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+	local claim = newButton(
+		content,
+		available and "CLAIM DAILY REWARD" or "COME BACK TOMORROW",
+		UDim2.new(1, -8, 0, 42),
+		UDim2.new(),
+		function()
+			if not available then
+				showToast("Your daily reward is already claimed.", COLORS.gold)
+				return
+			end
+
+			local ok = invokeRemote(ClaimDailyReward)
+			if ok then
+				task.delay(0.25, function()
+					requestState()
+					if currentMenu == "DailyReward" then
+						showDailyReward()
+					end
+				end)
+			end
+		end,
+		available and COLORS.green or COLORS.panelLight
+	)
+	claim.LayoutOrder = 3
+	claim.Active = available
+	claim.AutoButtonColor = available
+
+	local schedule = newLabel(
+		content,
+		"Rewards: 100, 150, 200, 250, 300, 350, 400, then 450 Starshards per consecutive day.",
+		UDim2.new(1, -8, 0, 50),
+		UDim2.new(),
+		12,
+		COLORS.muted
+	)
+	schedule.LayoutOrder = 4
+	schedule.TextWrapped = true
+end
+
+--========================================================
 -- QUESTS AND PROGRESSION
 --========================================================
 
@@ -1648,8 +1745,8 @@ evolveHudButton.Font = Enum.Font.GothamBold
 local buttonBar = newFrame(
 	hud,
 	"ButtonBar",
-	UDim2.new(0, 76, 0, 246),
-	UDim2.new(0, 12, 0.5, -123),
+	UDim2.new(0, 76, 0, 306),
+	UDim2.new(0, 12, 0.5, -153),
 	COLORS.background
 )
 buttonBar.BackgroundTransparency = 0.12
@@ -1740,6 +1837,14 @@ end
 addHudButton(1, "Pet", "PETS", showPets, COLORS.accent)
 addHudButton(2, "Egg", "EGGS", showEggShop, COLORS.panelLight)
 addHudButton(3, "Quest", "QUESTS", showQuests, COLORS.panelLight)
+addHudButton(4, "Daily", "DAILY", showDailyReward, COLORS.panelLight)
+addHudButton(5, "Fight", "ATTACK", function()
+	if not getEquippedPet() then
+		showToast("Choose a starter Mythling first.", COLORS.gold)
+		return
+	end
+	invokeRemote(AttackEnemy)
+end, COLORS.red)
 
 --========================================================
 -- STATE RENDERING
@@ -1812,6 +1917,8 @@ function renderState()
 		showPets()
 	elseif currentMenu == "EggShop" then
 		showEggShop()
+	elseif currentMenu == "DailyReward" then
+		showDailyReward()
 	elseif currentMenu == "Quests" then
 		showQuests()
 	elseif currentMenu == "PetDetails" and currentPet then
