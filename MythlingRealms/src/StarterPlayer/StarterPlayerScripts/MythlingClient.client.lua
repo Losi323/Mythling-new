@@ -1714,7 +1714,7 @@ local function showPremiumShop()
 		local description = newLabel(
 			card,
 			tostring(product.description or "A Starshard currency pack.")
-				.. "\\n+" .. formatNumber(tonumber(product.starshards) or 0) .. " Starshards",
+				.. "\n+" .. formatNumber(tonumber(product.starshards) or 0) .. " Starshards",
 			UDim2.new(1, -18, 0, 38),
 			UDim2.new(0, 9, 0, 35),
 			11,
