@@ -46,14 +46,16 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 - [x] Criaturas perseguem jogadores próximos no próprio mundo e atacam com dano/cooldown moderados.
 - [x] Compartilhar a recompensa base de uma criatura entre contribuidores próximos; bônus por evento/passe é aplicado individualmente.
 - [x] Ataques validados no servidor por jogador, alcance, personagem vivo e mundo desbloqueado.
-- [x] Vida visível das criaturas, recompensas e XP do mascote equipado.
+- [x] Vida visível das criaturas, feedback de dano flutuante, brilho de acerto, recompensas e XP do mascote equipado.
+- [x] Cristais flutuantes com luzes limitadas para reduzir o custo visual.
 - [x] Reaparecimento de criaturas.
-- [ ] Ajustar efeitos visuais, áudio, movimento/IA e balanceamento após testar no Studio.
+- [ ] Ajustar áudio, movimento/IA e balanceamento após testar no Studio.
 
 ## Fase 7 — Mundos e progressão
 - [x] Starfall Haven como área inicial.
 - [x] Emberfall com portal de ida e retorno.
 - [x] Terceira área, Forgotten Ruins, com ponte e puzzle de três runas.
+- [x] Distinguir visualmente Starfall Haven e Emberfall com floresta, portais iluminados, pináculos de basalto e fissuras de lava.
 - [x] Verificar desbloqueio de Emberfall no servidor tanto no portal quanto na coleta/combate.
 - [x] Recompensas de cristais específicas por mundo.
 - [ ] Fazer walkthrough de todas as rotas e verificar visualmente as colisões e os pontos de surgimento.
