@@ -407,6 +407,12 @@ local partyByUserId = {}
 local partyInvitesByTarget = {}
 local MAX_PARTY_SIZE = 4
 local PARTY_INVITE_SECONDS = 30
+local PARTY_ACTIONS = {
+	INVITE = true,
+	ACCEPT = true,
+	DECLINE = true,
+	LEAVE = true,
+}
 
 -- Forward declaration: combat handlers appear before the save/load section
 -- but still need to schedule a persistence attempt after awarding co-op rewards.
@@ -1017,7 +1023,10 @@ local function removePartyMember(player)
 end
 
 PartyAction.OnServerEvent:Connect(function(player, action, targetUserId)
-	if type(action) ~= "string" or not actionAllowed(player, "party_" .. action, 0.75) then
+	if type(action) ~= "string" or not PARTY_ACTIONS[action] then
+		return
+	end
+	if not actionAllowed(player, "party_" .. action, 0.75) then
 		return
 	end
 	if not playerData[player] then
