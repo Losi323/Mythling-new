@@ -2053,20 +2053,49 @@ local function showQuests()
 	)
 	evolutionButton.LayoutOrder = 100
 
+	local worldsUnlocked = tonumber(currentState.worldsUnlocked) or 1
+	local worldUnlockCost = tonumber(currentState.worldUnlockCost) or 1000
+	local canUnlockWorld = currentState.canUnlockWorld == true
+	local unlockLabel
+	if worldsUnlocked >= 2 then
+		unlockLabel = "EMBERFALL UNLOCKED"
+	elseif not getEquippedPet() then
+		unlockLabel = "CHOOSE A MYTHLING FIRST"
+	elseif (tonumber(currentState.petLevel) or 1) < 5 then
+		unlockLabel = "REACH LEVEL 5 TO UNLOCK"
+	elseif getCurrency() < worldUnlockCost then
+		unlockLabel = "NEED " .. formatNumber(worldUnlockCost) .. " STARSHARDS"
+	else
+		unlockLabel = "UNLOCK EMBERFALL"
+	end
+
 	local unlockButton = newButton(
 		content,
-		"UNLOCK EMBERFALL",
+		unlockLabel,
 		UDim2.new(1, -8, 0, 42),
 		UDim2.new(),
 		function()
+			if worldsUnlocked >= 2 then
+				showToast("Emberfall is already unlocked.", COLORS.green)
+				return
+			end
+			if not canUnlockWorld then
+				showToast("Reach level 5 and collect " .. formatNumber(worldUnlockCost) .. " Starshards.", COLORS.gold)
+				return
+			end
 			local ok = invokeRemote(UnlockWorld)
 			if ok then
-				showToast("World unlock request sent")
+				task.delay(0.25, function()
+					requestState()
+					if currentMenu == "Quests" then showQuests() end
+				end)
 			end
 		end,
-		COLORS.panelLight
+		worldsUnlocked >= 2 and COLORS.green or (canUnlockWorld and COLORS.accent or COLORS.panelLight)
 	)
 	unlockButton.LayoutOrder = 101
+	unlockButton.Active = worldsUnlocked < 2 and canUnlockWorld
+	unlockButton.AutoButtonColor = unlockButton.Active
 
 	local upgradeButton = newButton(
 		content,
