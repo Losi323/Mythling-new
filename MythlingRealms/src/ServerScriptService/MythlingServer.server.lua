@@ -912,6 +912,14 @@ local function makeCrystal(index, position, worldName)
 		crystal.Transparency = 1
 
 		local data = playerData[player]
+
+		-- Server-side world access check: hiding the portal is not enough,
+		-- because clients can manipulate their character position.
+		if worldName == "Emberfall" and data.worldsUnlocked < 2 then
+			notify(player, "Unlock Emberfall before collecting crystals here.")
+			return
+		end
+
 		syncEquippedPetData(data)
 
 		local baseReward = worldName == "Emberfall" and 25 or 10
@@ -1751,7 +1759,10 @@ game:BindToClose(function()
 		end)
 	end
 
-	local deadline = os.clock() + 10
+	-- Roblox gives BindToClose a limited shutdown window. Allow enough
+	-- time for in-flight DataStore operations to finish, while staying
+	-- below the platform's approximate 30-second shutdown limit.
+	local deadline = os.clock() + 25
 
 	while pending > 0 and os.clock() < deadline do
 		task.wait(0.1)
