@@ -29,6 +29,8 @@ local OpenEgg = getRemote("OpenEgg")
 local EquipPet = getRemote("EquipPet")
 local ClaimDailyReward = getRemote("ClaimDailyReward")
 local AttackEnemy = getRemote("AttackEnemy")
+local SpinWheel = getRemote("SpinWheel")
+local WheelResult = getRemote("WheelResult")
 
 --========================================================
 -- CONFIGURATION
@@ -78,6 +80,10 @@ local currentPet = nil
 local toastId = 0
 local hatchId = 0
 local busy = false
+local wheelBusy = false
+local wheelSpinAttempt = 0
+local wheelVisual = nil
+local wheelButton = nil
 
 --========================================================
 -- REMOTE HELPERS
@@ -1405,6 +1411,169 @@ local function showDailyReward()
 	)
 	schedule.LayoutOrder = 4
 	schedule.TextWrapped = true
+
+	local wheelCard = newFrame(
+		content,
+		"DailyWheelCard",
+		UDim2.new(1, -8, 0, 310),
+		UDim2.new(),
+		COLORS.panel
+	)
+	wheelCard.LayoutOrder = 5
+	stroke(wheelCard, COLORS.accent, 1.5)
+
+	local wheelTitle = newLabel(
+		wheelCard,
+		"DAILY STARSHARD WHEEL",
+		UDim2.new(1, -16, 0, 28),
+		UDim2.new(0, 8, 0, 8),
+		15,
+		COLORS.gold
+	)
+	wheelTitle.Font = Enum.Font.GothamBlack
+	wheelTitle.TextXAlignment = Enum.TextXAlignment.Center
+
+	local pointer = newLabel(
+		wheelCard,
+		"▼",
+		UDim2.new(0, 28, 0, 22),
+		UDim2.new(0.5, -14, 0, 36),
+		19,
+		COLORS.gold
+	)
+	pointer.TextXAlignment = Enum.TextXAlignment.Center
+
+	wheelVisual = newFrame(
+		wheelCard,
+		"WheelDisk",
+		UDim2.fromOffset(210, 210),
+		UDim2.new(0.5, -105, 0, 54),
+		COLORS.background
+	)
+	corner(wheelVisual, 999)
+	stroke(wheelVisual, COLORS.gold, 3)
+
+	local wheelEntries = currentState.wheelRewards or {
+		{amount = 100, weight = 40},
+		{amount = 250, weight = 30},
+		{amount = 500, weight = 18},
+		{amount = 1000, weight = 10},
+		{amount = 2500, weight = 2},
+	}
+	local wheelPositions = {
+		UDim2.new(0.5, -31, 0, 10),
+		UDim2.new(1, -72, 0.5, -18),
+		UDim2.new(0.5, -31, 1, -46),
+		UDim2.new(0, 7, 0.5, -18),
+		UDim2.new(0.5, -31, 0.5, -18),
+	}
+	local wheelColors = {
+		Color3.fromRGB(74, 151, 255),
+		Color3.fromRGB(76, 205, 137),
+		Color3.fromRGB(255, 201, 86),
+		Color3.fromRGB(190, 113, 255),
+		Color3.fromRGB(255, 96, 111),
+	}
+	for index, entry in ipairs(wheelEntries) do
+		local position = wheelPositions[index]
+		if position then
+			local chip = newFrame(
+				wheelVisual,
+				"Prize_" .. index,
+				UDim2.fromOffset(62, 36),
+				position,
+				wheelColors[index] or COLORS.accent
+			)
+			corner(chip, 9)
+			local prizeText = newLabel(
+				chip,
+				formatNumber(tonumber(entry.amount) or 0),
+				UDim2.fromScale(1, 1),
+				UDim2.new(),
+				10,
+				COLORS.background
+			)
+			prizeText.Font = Enum.Font.GothamBlack
+			prizeText.TextXAlignment = Enum.TextXAlignment.Center
+		end
+	end
+
+	local center = newFrame(
+		wheelVisual,
+		"WheelCenter",
+		UDim2.fromOffset(42, 42),
+		UDim2.new(0.5, -21, 0.5, -21),
+		COLORS.panel
+	)
+	corner(center, 999)
+	stroke(center, COLORS.text, 1)
+	local star = newLabel(
+		center,
+		"★",
+		UDim2.fromScale(1, 1),
+		UDim2.new(),
+		22,
+		COLORS.gold
+	)
+	star.TextXAlignment = Enum.TextXAlignment.Center
+
+	wheelButton = newButton(
+		wheelCard,
+		currentState.dailyWheelAvailable and "SPIN THE WHEEL" or "COME BACK TOMORROW",
+		UDim2.new(1, -20, 0, 34),
+		UDim2.new(0, 10, 1, -42),
+		function()
+			if wheelBusy then return end
+			if not currentState.dailyWheelAvailable then
+				showToast("The daily wheel is already used.", COLORS.gold)
+				return
+			end
+
+			wheelBusy = true
+			wheelSpinAttempt += 1
+			local thisAttempt = wheelSpinAttempt
+			if wheelButton and wheelButton.Parent then
+				wheelButton.Text = "SPINNING..."
+				wheelButton.Active = false
+				wheelButton.AutoButtonColor = false
+			end
+			local ok = invokeRemote(SpinWheel)
+			if not ok then
+				wheelBusy = false
+				if wheelButton and wheelButton.Parent then
+					wheelButton.Text = "SPIN THE WHEEL"
+					wheelButton.Active = true
+					wheelButton.AutoButtonColor = true
+				end
+			end
+			task.delay(8, function()
+				if wheelBusy and wheelSpinAttempt == thisAttempt then
+					wheelBusy = false
+					if wheelButton and wheelButton.Parent then
+						wheelButton.Text = "SPIN THE WHEEL"
+						wheelButton.Active = true
+						wheelButton.AutoButtonColor = true
+					end
+					showToast("The wheel did not respond. Please refresh your state.", COLORS.red)
+				end
+			end)
+		end,
+		currentState.dailyWheelAvailable and COLORS.accent or COLORS.panelLight
+	)
+	wheelButton.LayoutOrder = 6
+	wheelButton.Active = currentState.dailyWheelAvailable
+	wheelButton.AutoButtonColor = currentState.dailyWheelAvailable
+
+	local wheelOdds = newLabel(
+		content,
+		"Prize odds: 100 (40%), 250 (30%), 500 (18%), 1,000 (10%), 2,500 (2%) Starshards.",
+		UDim2.new(1, -8, 0, 44),
+		UDim2.new(),
+		12,
+		COLORS.muted
+	)
+	wheelOdds.LayoutOrder = 6
+	wheelOdds.TextWrapped = true
 end
 
 --========================================================
