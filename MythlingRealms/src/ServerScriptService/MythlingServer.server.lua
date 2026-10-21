@@ -1270,9 +1270,27 @@ end)
 -- PlayerRemoving still performs its own immediate final save.
 local saveDebounceScheduled = {}
 local function scheduleSave(player, delaySeconds)
-	if saveDebounceScheduled[player] then return end
-	saveDebounceScheduled[player] = true
-	task.delay(delaySeconds or 15, function()
+	local delayTime = math.max(0, tonumber(delaySeconds) or 15)
+	local dueAt = os.clock() + delayTime
+	local existing = saveDebounceScheduled[player]
+
+	-- Keep the earliest pending deadline. Routine activity is coalesced, but
+	-- an urgent retry (such as a unique vault reward) can move a save forward.
+	if existing and existing.dueAt <= dueAt then
+		return
+	end
+
+	local token = {}
+	saveDebounceScheduled[player] = {
+		dueAt = dueAt,
+		token = token,
+	}
+	task.delay(delayTime, function()
+		local scheduled = saveDebounceScheduled[player]
+		if not scheduled or scheduled.token ~= token then
+			return
+		end
+
 		saveDebounceScheduled[player] = nil
 		if playerData[player] and not leavingPlayers[player] then
 			task.spawn(savePlayer, player)
