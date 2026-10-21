@@ -1933,6 +1933,24 @@ local function loadPlayer(player)
 
 	loadingPlayers[player] = true
 
+	-- A rapid reconnect must not load an older snapshot while the previous
+	-- session is still writing this account's final data.
+	local lockDeadline = os.clock() + 15
+	while savingPlayers[player.UserId] and os.clock() < lockDeadline do
+		if player.Parent ~= Players or leavingPlayers[player] then
+			loadingPlayers[player] = nil
+			return
+		end
+		task.wait(0.1)
+	end
+
+	if savingPlayers[player.UserId] then
+		loadingPlayers[player] = nil
+		warn("[MythlingRealms] Timed out waiting for prior account save before loading " .. player.Name)
+		player:Kick("Your previous session is still saving. Please rejoin in a moment.")
+		return
+	end
+
 	local success, saved = pcall(function()
 		return store:GetAsync("player_" .. player.UserId)
 	end)
