@@ -969,7 +969,7 @@ local function addPortalPrompt(part, isEmberfall)
 
 	prompt.Triggered:Connect(function(player)
 		local data = playerData[player]
-		if not data then return end
+		if not data or leavingPlayers[player] then return end
 
 		if not isEmberfall and data.worldsUnlocked < 2 then
 			notify(
@@ -1067,7 +1067,7 @@ local function makeCrystal(index, position, worldName)
 	local busy = false
 
 	prompt.Triggered:Connect(function(player)
-		if busy or not playerData[player] then return end
+		if busy or not playerData[player] or leavingPlayers[player] then return end
 
 		local character = player.Character
 		local root = character
@@ -1722,6 +1722,9 @@ local function loadPlayer(player)
 	end
 
 	syncEquippedPetData(data)
+	if gamePassCache[player] and gamePassCache[player].VIPCompanion then
+		addOwnedPet(data, "AuroraStag")
+	end
 	playerData[player] = data
 
 	updateLeaderstats(player)
@@ -1733,6 +1736,70 @@ local function loadPlayer(player)
 	pushState(player)
 	loadingPlayers[player] = nil
 end
+
+local function refreshPassOwnership(player)
+	local cache = {}
+	for passKey, passId in pairs(GAMEPASS_IDS) do
+		local owns = false
+		if type(passId) == "number" and passId > 0 then
+			local ok, result = pcall(function()
+				return MarketplaceService:UserOwnsGamePassAsync(player.UserId, passId)
+			end)
+			owns = ok and result == true
+			if not ok then
+				warn("[MythlingRealms] Could not check Game Pass " .. passKey .. " for " .. player.Name)
+			end
+		end
+		cache[passKey] = owns
+	end
+
+	if player.Parent ~= Players then
+		return
+	end
+
+	gamePassCache[player] = cache
+	local data = playerData[player]
+	if data then
+		if cache.VIPCompanion and not ownsPet(data, "AuroraStag") then
+			addOwnedPet(data, "AuroraStag")
+			pushState(player)
+			task.spawn(savePlayer, player)
+		else
+			pushState(player)
+		end
+	end
+end
+
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamePassId, wasPurchased)
+	if not wasPurchased or leavingPlayers[player] then
+		return
+	end
+
+	local passKey = nil
+	for key, configuredId in pairs(GAMEPASS_IDS) do
+		if configuredId > 0 and configuredId == gamePassId then
+			passKey = key
+			break
+		end
+	end
+
+	if not passKey then
+		return
+	end
+
+	gamePassCache[player] = gamePassCache[player] or {}
+	gamePassCache[player][passKey] = true
+
+	local data = playerData[player]
+	if data then
+		if passKey == "VIPCompanion" and not ownsPet(data, "AuroraStag") then
+			addOwnedPet(data, "AuroraStag")
+			task.spawn(savePlayer, player)
+		end
+		pushState(player)
+		notify(player, "Purchase confirmed: " .. (passKey == "VIPCompanion" and "VIP Aurora Stag" or "2x Starshards") .. " unlocked!")
+	end
+end)
 
 GetState.OnServerInvoke = function(player)
 	local timeout = 15
@@ -2176,9 +2243,11 @@ end)
 
 Players.PlayerAdded:Connect(function(player)
 	task.spawn(loadPlayer, player)
+	task.spawn(refreshPassOwnership, player)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
+	leavingPlayers[player] = true
 	-- Loading and saving both yield. Wait briefly for an in-flight load to
 	-- finish before attempting the final save, otherwise a fast disconnect
 	-- could leave the session without ever saving its loaded data.
@@ -2201,6 +2270,7 @@ Players.PlayerRemoving:Connect(function(player)
 
 	playerData[player] = nil
 	savingPlayers[player] = nil
+	gamePassCache[player] = nil
 
 	local prefix = tostring(player.UserId) .. "_"
 
@@ -2209,10 +2279,12 @@ Players.PlayerRemoving:Connect(function(player)
 			lastRequest[key] = nil
 		end
 	end
+	leavingPlayers[player] = nil
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do
 	task.spawn(loadPlayer, player)
+	task.spawn(refreshPassOwnership, player)
 end
 
 task.spawn(function()
