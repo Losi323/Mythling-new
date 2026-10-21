@@ -459,7 +459,9 @@ local petVisuals = {}
 local lastRequest = {}
 local savingPlayers = {}
 local gamePassCache = {}
-local leavingPlayers = {}
+-- Weak keys prevent departed Player instances from being retained forever while
+-- ensuring late callbacks still recognize the same departing session.
+local leavingPlayers = setmetatable({}, { __mode = "k" })
 local finalSaveLocks = {}
 local partiesByLeader = {}
 local partyByUserId = {}
@@ -3228,7 +3230,8 @@ local function cleanupRemovedPlayer(player)
 	if finalSaveLocks[player.UserId] == player then
 		finalSaveLocks[player.UserId] = nil
 	end
-	leavingPlayers[player] = nil
+	-- Keep leavingPlayers[player] true until the Player instance is collectible;
+	-- a late yielding load/ownership callback must not resurrect removed state.
 end
 
 local function retryPendingFinalSave(player, attempt)
