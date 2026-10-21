@@ -799,6 +799,22 @@ local function updateLeaderstats(player)
 	end
 
 	level.Value = data.petLevel
+
+	local crystals = leaderstats:FindFirstChild("CrystalsCollected")
+	if not crystals then
+		crystals = Instance.new("IntValue")
+		crystals.Name = "CrystalsCollected"
+		crystals.Parent = leaderstats
+	end
+	crystals.Value = data.totalCollected
+
+	local defeats = leaderstats:FindFirstChild("CreaturesDefeated")
+	if not defeats then
+		defeats = Instance.new("IntValue")
+		defeats.Name = "CreaturesDefeated"
+		defeats.Parent = leaderstats
+	end
+	defeats.Value = data.enemiesDefeated or 0
 end
 
 local function pushState(player)
