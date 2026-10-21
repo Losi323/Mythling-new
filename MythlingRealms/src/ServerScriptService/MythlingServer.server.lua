@@ -2270,7 +2270,9 @@ Players.PlayerRemoving:Connect(function(player)
 	removePetVisual(player)
 
 	playerData[player] = nil
-	savingPlayers[player] = nil
+	-- Do not clear an in-flight save lock here. The save owner clears it
+	-- after UpdateAsync finishes; resetting it early could permit concurrent
+	-- writes and allow an older snapshot to overwrite newer progress.
 	gamePassCache[player] = nil
 
 	local prefix = tostring(player.UserId) .. "_"
