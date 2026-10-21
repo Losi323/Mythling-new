@@ -402,6 +402,7 @@ local lastRequest = {}
 local savingPlayers = {}
 local gamePassCache = {}
 local leavingPlayers = {}
+local finalSaveLocks = {}
 local partiesByLeader = {}
 local partyByUserId = {}
 local partyInvitesByTarget = {}
@@ -2223,8 +2224,11 @@ local function loadPlayer(player)
 
 	-- A rapid reconnect must not load an older snapshot while the previous
 	-- session is still writing this account's final data.
-	local lockDeadline = os.clock() + 15
-	while savingPlayers[player.UserId] and os.clock() < lockDeadline do
+	local lockDeadline = os.clock() + 20
+	while (
+		savingPlayers[player.UserId]
+		or (finalSaveLocks[player.UserId] and finalSaveLocks[player.UserId] ~= player)
+	) and os.clock() < lockDeadline do
 		if player.Parent ~= Players or leavingPlayers[player] then
 			loadingPlayers[player] = nil
 			return
@@ -2819,12 +2823,38 @@ Players.PlayerAdded:Connect(function(player)
 	task.spawn(refreshPassOwnership, player)
 end)
 
+local function cleanupRemovedPlayer(player)
+	removePetVisual(player)
+	playerData[player] = nil
+	gamePassCache[player] = nil
+	saveDebounceScheduled[player] = nil
+
+	local prefix = tostring(player.UserId) .. "_"
+	for key in pairs(lastRequest) do
+		if string.sub(key, 1, #prefix) == prefix then
+			lastRequest[key] = nil
+		end
+	end
+
+	-- Clear only the final-save lock owned by this Player instance.
+	if finalSaveLocks[player.UserId] == player then
+		finalSaveLocks[player.UserId] = nil
+	end
+	leavingPlayers[player] = nil
+end
+
 Players.PlayerRemoving:Connect(function(player)
 	leavingPlayers[player] = true
 	removePartyMember(player)
-	-- Loading and saving both yield. Wait briefly for an in-flight load to
-	-- finish before attempting the final save, otherwise a fast disconnect
-	-- could leave the session without ever saving its loaded data.
+
+	local userId = player.UserId
+	-- Hold a per-account barrier until this session's final save is complete.
+	-- A fast reconnect waits here rather than loading stale data while the
+	-- departed session is still retrying UpdateAsync.
+	if playerData[player] and not finalSaveLocks[userId] then
+		finalSaveLocks[userId] = player
+	end
+
 	local loadDeadline = os.clock() + 12
 	while loadingPlayers[player] and os.clock() < loadDeadline do
 		task.wait(0.1)
@@ -2832,30 +2862,44 @@ Players.PlayerRemoving:Connect(function(player)
 
 	if loadingPlayers[player] then
 		warn("[MythlingRealms] Timed out waiting for data load on leave: " .. player.Name)
-	else
-		-- Attempt to save before removing in-memory data.
-		local saved = savePlayer(player)
-		if not saved and playerData[player] then
-			warn("[MythlingRealms] Final save did not complete for " .. player.Name)
-		end
+		cleanupRemovedPlayer(player)
+		return
 	end
 
-	removePetVisual(player)
-
-	playerData[player] = nil
-	-- Do not clear an in-flight save lock here. The save owner clears it
-	-- after UpdateAsync finishes; resetting it early could permit concurrent
-	-- writes and allow an older snapshot to overwrite newer progress.
-	gamePassCache[player] = nil
-
-	local prefix = tostring(player.UserId) .. "_"
-
-	for key in pairs(lastRequest) do
-		if string.sub(key, 1, #prefix) == prefix then
-			lastRequest[key] = nil
-		end
+	if not playerData[player] then
+		cleanupRemovedPlayer(player)
+		return
 	end
-	leavingPlayers[player] = nil
+
+	local saved = false
+	for attempt = 1, 2 do
+		saved = savePlayer(player)
+		if saved then break end
+		task.wait(attempt * 1.5)
+	end
+
+	if saved then
+		cleanupRemovedPlayer(player)
+		return
+	end
+
+	warn("[MythlingRealms] Final save is still pending for " .. player.Name .. "; retaining session data for retries.")
+	-- Do not throw away the last in-memory snapshot on a transient DataStore
+	-- outage. The account barrier remains in place while these retries run.
+	task.spawn(function()
+		for attempt = 1, 4 do
+			task.wait(attempt * 2)
+			if not playerData[player] then
+				return
+			end
+			if savePlayer(player) then
+				cleanupRemovedPlayer(player)
+				return
+			end
+		end
+
+		warn("[MythlingRealms] Could not persist final data after repeated retries for " .. player.Name .. ". The session snapshot is being retained until shutdown.")
+	end)
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do
