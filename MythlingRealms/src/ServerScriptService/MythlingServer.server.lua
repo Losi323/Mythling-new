@@ -613,15 +613,20 @@ end
 -- MAP
 --==================================================
 
-local oldMap = workspace:FindFirstChild("MythlingRealmsMap")
+-- Reuse an existing map folder instead of destroying it at startup.
+-- Imported scenery and Rojo-managed instances may live inside this folder.
+local map = workspace:FindFirstChild("MythlingRealmsMap")
 
-if oldMap then
-	oldMap:Destroy()
+if not map then
+	map = Instance.new("Folder")
+	map.Name = "MythlingRealmsMap"
+	map.Parent = workspace
+elseif not map:IsA("Folder") then
+	warn("[MythlingRealms] Workspace.MythlingRealmsMap exists but is not a Folder.")
+	map = Instance.new("Folder")
+	map.Name = "MythlingRealmsRuntime"
+	map.Parent = workspace
 end
-
-local map = Instance.new("Folder")
-map.Name = "MythlingRealmsMap"
-map.Parent = workspace
 
 local function makePart(
 	name,
@@ -1193,13 +1198,33 @@ end)
 
 local function savePlayer(player)
 	local data = playerData[player]
+	if not data then
+		return false
+	end
 
-	if not data or savingPlayers[player] then
+	-- Serialize saves per player. If autosave is already running when the
+	-- player leaves, wait briefly for it to finish instead of silently
+	-- skipping the final save.
+	local waitDeadline = os.clock() + 12
+	while savingPlayers[player] do
+		if os.clock() >= waitDeadline then
+			warn("[MythlingRealms] Timed out waiting for an earlier save for " .. player.Name)
+			return false
+		end
+		task.wait(0.1)
+		if playerData[player] ~= data then
+			return false
+		end
+	end
+
+	-- Re-read current data after waiting, so the final snapshot includes
+	-- progress made while a previous save was in flight.
+	data = playerData[player]
+	if not data then
 		return false
 	end
 
 	savingPlayers[player] = true
-
 	syncEquippedPetData(data)
 	local snapshot = cloneData(data)
 
