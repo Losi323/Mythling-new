@@ -1672,9 +1672,9 @@ local function makeCrystal(index, position, worldName)
 		phase = index * 0.73,
 	}
 
-	-- A light on every third crystal preserves the glow without making
+	-- A light on every fourth crystal preserves the glow without making
 	-- dozens of dynamic lights expensive on lower-end/mobile devices.
-	if index % 3 == 0 then
+	if index % 4 == 0 then
 		local crystalLight = Instance.new("PointLight")
 		crystalLight.Name = "CrystalGlow"
 		crystalLight.Color = crystal.Color
