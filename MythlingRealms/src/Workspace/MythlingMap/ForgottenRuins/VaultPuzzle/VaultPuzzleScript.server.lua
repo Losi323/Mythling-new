@@ -13,7 +13,13 @@ assert(puzzle:IsA("Model"), "VaultPuzzleScript must be parented to a Model")
 local function ensurePart(name, size, position, color, material)
 	local existing = puzzle:FindFirstChild(name)
 	if existing and existing:IsA("BasePart") then
+		-- Normalize both fresh Rojo instances and older in-Studio puzzle parts
+		-- to the same predictable layout, so no legacy piece is left elsewhere.
+		existing.Size = size
+		existing.Position = position
 		existing.Anchored = true
+		existing.Color = color
+		existing.Material = material or Enum.Material.Slate
 		return existing
 	end
 	if existing then
