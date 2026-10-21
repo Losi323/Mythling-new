@@ -10,6 +10,7 @@ local DataStoreService = game:GetService("DataStoreService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local DATASTORE_NAME = "MythlingRealms_PlayerData_v1"
 local AUTOSAVE_SECONDS = 60
@@ -1640,6 +1641,8 @@ local crystalFolder = Instance.new("Folder")
 crystalFolder.Name = "CollectibleCrystals"
 crystalFolder.Parent = map
 
+local crystalMotion = {}
+
 local function makeCrystal(index, position, worldName)
 	local crystal = Instance.new("Part")
 
@@ -1658,6 +1661,10 @@ local function makeCrystal(index, position, worldName)
 	})[((index - 1) % 3) + 1]
 
 	crystal.Parent = crystalFolder
+	crystalMotion[crystal] = {
+		basePosition = position,
+		phase = index * 0.73,
+	}
 
 	-- A light on every third crystal preserves the glow without making
 	-- dozens of dynamic lights expensive on lower-end/mobile devices.
@@ -1818,6 +1825,25 @@ local emberCrystalPositions = {
 for i, position in ipairs(emberCrystalPositions) do
 	makeCrystal(100 + i, position, "Emberfall")
 end
+
+-- Gentle floating makes collectibles readable at a glance. The update is
+-- throttled and only touches visible crystals to keep the cost low.
+local crystalMotionAccumulator = 0
+RunService.Heartbeat:Connect(function(deltaTime)
+	crystalMotionAccumulator += deltaTime
+	if crystalMotionAccumulator < 0.05 then return end
+	crystalMotionAccumulator = 0
+	local now = os.clock()
+
+	for crystal, state in pairs(crystalMotion) do
+		if not crystal.Parent then
+			crystalMotion[crystal] = nil
+		elseif crystal.Transparency < 0.95 then
+			local bob = math.sin(now * 1.7 + state.phase) * 0.24
+			crystal.Position = state.basePosition + Vector3.new(0, bob, 0)
+		end
+	end
+end)
 
 --==================================================
 -- CREATURES AND SERVER-AUTHORITATIVE COMBAT
@@ -1981,6 +2007,56 @@ RunService.Heartbeat:Connect(function(frameDelta)
 	end
 end)
 
+local function createCombatHitFeedback(target, damage)
+	if not target or not target.Parent then return end
+
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "HitFlash"
+	highlight.Adornee = target
+	highlight.FillColor = Color3.fromRGB(255, 245, 220)
+	highlight.FillTransparency = 0.28
+	highlight.OutlineTransparency = 1
+	highlight.Parent = target
+	task.delay(0.12, function()
+		if highlight.Parent then highlight:Destroy() end
+	end)
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "DamageNumber"
+	billboard.Adornee = target
+	billboard.Size = UDim2.fromOffset(96, 40)
+	billboard.StudsOffset = Vector3.new(0, 3.4, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = target
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.BorderSizePixel = 0
+	label.Font = Enum.Font.GothamBlack
+	label.Text = "-" .. tostring(damage)
+	label.TextColor3 = Color3.fromRGB(255, 125, 95)
+	label.TextStrokeColor3 = Color3.fromRGB(31, 28, 38)
+	label.TextStrokeTransparency = 0.25
+	label.TextScaled = true
+	label.Parent = billboard
+
+	TweenService:Create(
+		billboard,
+		TweenInfo.new(0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{StudsOffset = Vector3.new(0, 5.3, 0)}
+	):Play()
+	TweenService:Create(
+		label,
+		TweenInfo.new(0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{TextTransparency = 1, TextStrokeTransparency = 1}
+	):Play()
+
+	task.delay(0.6, function()
+		if billboard.Parent then billboard:Destroy() end
+	end)
+end
+
 local function grantCombatXP(data, amount)
 	if not data.pet then
 		return false
@@ -2051,6 +2127,7 @@ AttackEnemy.OnServerEvent:Connect(function(player)
 	end
 
 	local damage = 8 + data.petLevel * 2 + (data.petEvolved and 10 or 0)
+	createCombatHitFeedback(target, damage)
 	targetState.damageByUserId = targetState.damageByUserId or {}
 	targetState.damageByUserId[player.UserId] =
 		(targetState.damageByUserId[player.UserId] or 0) + damage
@@ -2075,7 +2152,11 @@ AttackEnemy.OnServerEvent:Connect(function(player)
 	local contributionTable = targetState.damageByUserId or {}
 
 	enemyStates[target] = nil
-	target:Destroy()
+	-- Keep the defeated creature visible briefly so its final damage number
+	-- can finish animating; it is removed from enemyStates immediately.
+	task.delay(0.62, function()
+		if target.Parent then target:Destroy() end
+	end)
 
 	-- Share one base reward pool among nearby contributors. This rewards
 	-- cooperation without multiplying the base economy by the group size.
