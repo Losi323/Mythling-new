@@ -1362,7 +1362,7 @@ local spawn = Instance.new("SpawnLocation")
 
 spawn.Name = "GuardianSpawn"
 spawn.Size = Vector3.new(10, 1, 10)
-spawn.Position = Vector3.new(0, 1, 0)
+spawn.Position = Vector3.new(0, 0.75, 0)
 spawn.Anchored = true
 spawn.Neutral = true
 spawn.Color = Color3.fromRGB(255, 229, 128)
@@ -1659,12 +1659,16 @@ local function makeCrystal(index, position, worldName)
 
 	crystal.Parent = crystalFolder
 
-	local crystalLight = Instance.new("PointLight")
-	crystalLight.Name = "CrystalGlow"
-	crystalLight.Color = crystal.Color
-	crystalLight.Range = 10
-	crystalLight.Brightness = 0.65
-	crystalLight.Parent = crystal
+	-- A light on every third crystal preserves the glow without making
+	-- dozens of dynamic lights expensive on lower-end/mobile devices.
+	if index % 3 == 0 then
+		local crystalLight = Instance.new("PointLight")
+		crystalLight.Name = "CrystalGlow"
+		crystalLight.Color = crystal.Color
+		crystalLight.Range = 8
+		crystalLight.Brightness = 0.45
+		crystalLight.Parent = crystal
+	end
 
 	local prompt = Instance.new("ProximityPrompt")
 
