@@ -722,9 +722,12 @@ local function stateForClient(data, player)
 	end
 
 	local todayDay = math.floor(os.time() / 86400)
-	local nextDailyStreak = data.lastDailyClaimDay == todayDay - 1
-		and math.min((data.dailyStreak or 0) + 1, 8)
-		or 1
+	local nextDailyStreak
+	if data.lastDailyClaimDay == todayDay or data.lastDailyClaimDay == todayDay - 1 then
+		nextDailyStreak = math.min((data.dailyStreak or 0) + 1, 8)
+	else
+		nextDailyStreak = 1
+	end
 	local nextDailyReward = 100 + (nextDailyStreak - 1) * 50
 
 	return {
