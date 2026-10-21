@@ -2203,24 +2203,32 @@ local function showStarterSelection()
 		card.LayoutOrder = index + 1
 		stroke(card, info.color, 1.2)
 
-		local icon = newLabel(
-			card,
-			info.emoji,
-			UDim2.new(0, 75, 0, 75),
-			UDim2.new(0, 8, 0, 10),
-			43,
-			info.color
-		)
-		icon.TextXAlignment = Enum.TextXAlignment.Center
+		makePetBadge(card, petName, 70, UDim2.new(0, 10, 0, 15), 3)
 
+		local definition = currentState.pets and currentState.pets[petName]
+		local displayName = definition and definition.displayName or petName
 		newLabel(
 			card,
-			petName,
-			UDim2.new(0.48, 0, 0, 30),
-			UDim2.new(0, 88, 0, 14),
+			displayName,
+			UDim2.new(0.46, 0, 0, 28),
+			UDim2.new(0, 88, 0, 12),
 			15,
 			COLORS.text
 		)
+
+		local elementDescription = definition
+			and (tostring(definition.element or "Mythling") .. " · " .. tostring(definition.description or "Ready to explore."))
+			or "Ready to explore."
+		local description = newLabel(
+			card,
+			elementDescription,
+			UDim2.new(0.48, 0, 0, 42),
+			UDim2.new(0, 88, 0, 42),
+			11,
+			COLORS.muted
+		)
+		description.TextWrapped = true
+		description.TextYAlignment = Enum.TextYAlignment.Top
 
 		newButton(
 			card,
