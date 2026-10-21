@@ -2286,6 +2286,49 @@ savePlayer = function(player)
 	return success
 end
 
+-- Developer Product receipt processing is idempotent: the PurchaseId is
+-- stored in player data, and the purchase is only acknowledged to Roblox
+-- after that receipt flag and its Starshards reward have been saved.
+MarketplaceService.ProcessReceipt = function(receiptInfo)
+	local productId = tonumber(receiptInfo and receiptInfo.ProductId)
+	local product = productId and DEVELOPER_PRODUCTS_BY_ID[productId]
+	if not product then
+		warn("[MythlingRealms] Received an unconfigured Developer Product ID: " .. tostring(productId))
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+
+	local playerId = tonumber(receiptInfo.PlayerId)
+	local player = playerId and Players:GetPlayerByUserId(playerId)
+	if not player or not playerData[player] or leavingPlayers[player] then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+
+	local purchaseId = tostring(receiptInfo.PurchaseId or "")
+	if purchaseId == "" or #purchaseId > 128 then
+		warn("[MythlingRealms] Developer Product receipt has an invalid PurchaseId.")
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+
+	local data = playerData[player]
+	data.processedReceipts = data.processedReceipts or {}
+	if not data.processedReceipts[purchaseId] then
+		data.processedReceipts[purchaseId] = true
+		data.starshards += product.starshards
+		pushState(player)
+		notify(
+			player,
+			"Purchase complete: +" .. product.starshards .. " Starshards!"
+		)
+	end
+
+	if savePlayer(player) then
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+
+	warn("[MythlingRealms] Developer Product receipt save failed for " .. player.Name .. "; Roblox will retry it.")
+	return Enum.ProductPurchaseDecision.NotProcessedYet
+end
+
 vaultAccessRequest.OnInvoke = function(player)
 	local data = playerData[player]
 	if not data or leavingPlayers[player] or player.Parent ~= Players then
