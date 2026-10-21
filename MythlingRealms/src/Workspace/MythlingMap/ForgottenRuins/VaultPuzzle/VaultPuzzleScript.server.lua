@@ -400,6 +400,14 @@ for _, rune in ipairs(runes) do
 	end)
 end
 
+-- Keep per-player puzzle state scoped to active sessions.
+-- The persistent one-time claim lives in the main player's DataStore record.
+Players.PlayerRemoving:Connect(function(player)
+	runesDone[player.UserId] = nil
+	solvedByUserId[player.UserId] = nil
+	claimedByUserId[player.UserId] = nil
+end)
+
 chestPrompt.Triggered:Connect(function(player)
 	if not isCloseEnough(player, chestBase, 14) then return end
 	local allowed, reason = checkVaultAccess(player)
