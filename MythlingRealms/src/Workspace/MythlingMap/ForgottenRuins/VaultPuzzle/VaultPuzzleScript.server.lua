@@ -16,7 +16,7 @@ local function ensurePart(name, size, position, color, material)
 		-- Normalize both fresh Rojo instances and older in-Studio puzzle parts
 		-- to the same predictable layout, so no legacy piece is left elsewhere.
 		existing.Size = size
-		existing.Position = position
+		existing.CFrame = CFrame.new(position)
 		existing.Anchored = true
 		existing.Color = color
 		existing.Material = material or Enum.Material.Slate
