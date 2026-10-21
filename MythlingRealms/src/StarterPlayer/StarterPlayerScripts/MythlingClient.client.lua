@@ -1689,15 +1689,76 @@ local function showPremiumShop()
 		actionButton.AutoButtonColor = not owned and configured
 	end
 
+	local products = currentState.developerProducts or {}
+	for index, product in ipairs(products) do
+		local card = newFrame(
+			content,
+			"Product_" .. tostring(product.key),
+			UDim2.new(1, -8, 0, 112),
+			UDim2.new(),
+			COLORS.panel
+		)
+		card.LayoutOrder = #passes + index + 1
+		stroke(card, COLORS.green, 1.2)
+
+		local titleLabel = newLabel(
+			card,
+			tostring(product.name or "Starshard Pack"),
+			UDim2.new(1, -18, 0, 26),
+			UDim2.new(0, 9, 0, 8),
+			15,
+			COLORS.green
+		)
+		titleLabel.Font = Enum.Font.GothamBold
+
+		local description = newLabel(
+			card,
+			tostring(product.description or "A Starshard currency pack.")
+				.. "\\n+" .. formatNumber(tonumber(product.starshards) or 0) .. " Starshards",
+			UDim2.new(1, -18, 0, 38),
+			UDim2.new(0, 9, 0, 35),
+			11,
+			COLORS.muted
+		)
+		description.TextWrapped = true
+		description.TextYAlignment = Enum.TextYAlignment.Top
+
+		local productId = tonumber(product.productId) or 0
+		local configured = product.configured == true and productId > 0
+		local actionButton = newButton(
+			card,
+			configured and "BUY STARSHARDS" or "SETUP REQUIRED",
+			UDim2.new(0, 142, 0, 30),
+			UDim2.new(1, -152, 1, -36),
+			function()
+				if not configured then
+					showToast("This pack is disabled until its real Developer Product ID is configured.", COLORS.gold)
+					return
+				end
+
+				local ok, err = pcall(function()
+					MarketplaceService:PromptProductPurchase(player, productId)
+				end)
+				if not ok then
+					warn("[MythlingRealms] Could not open Developer Product prompt:", err)
+					showToast("Roblox could not open the purchase prompt.", COLORS.red)
+				end
+			end,
+			configured and COLORS.green or COLORS.panelLight
+		)
+		actionButton.Active = configured
+		actionButton.AutoButtonColor = configured
+	end
+
 	local note = newLabel(
 		content,
-		"Game Pass IDs are intentionally disabled until real IDs are set in MythlingServer.server.lua. No fake IDs or prices are used.",
+		"Prices are shown by Roblox before purchase. Purchases stay disabled until you configure real IDs in MythlingServer.server.lua; no fake prices or IDs are used.",
 		UDim2.new(1, -8, 0, 48),
 		UDim2.new(),
 		12,
 		COLORS.muted
 	)
-	note.LayoutOrder = 10
+	note.LayoutOrder = #passes + #products + 2
 	note.TextWrapped = true
 end
 
