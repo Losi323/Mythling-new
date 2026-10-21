@@ -26,6 +26,30 @@ local GAMEPASS_IDS = {
 	VIPCompanion = 0,
 }
 
+-- Developer Product IDs remain disabled until real products exist in Creator
+-- Dashboard. Prices are never hard-coded; Roblox shows the current price.
+local DEVELOPER_PRODUCTS = {
+	StarshardSatchel = {
+		productId = 0,
+		name = "Starshard Satchel",
+		description = "A small boost for your next upgrade or egg.",
+		starshards = 500,
+	},
+	StarshardCache = {
+		productId = 0,
+		name = "Starshard Cache",
+		description = "A larger pack of Starshards for collectors.",
+		starshards = 1500,
+	},
+	StarshardVault = {
+		productId = 0,
+		name = "Starshard Vault",
+		description = "A large Starshard pack for long-term progression.",
+		starshards = 5000,
+	},
+}
+
+local DEVELOPER_PRODUCTS_BY_ID = {}
 do
 	local seenIds = {}
 	for passKey, passId in pairs(GAMEPASS_IDS) do
@@ -36,6 +60,29 @@ do
 		if passId > 0 then
 			assert(not seenIds[passId], "Game Pass IDs must be unique")
 			seenIds[passId] = true
+		end
+	end
+end
+
+do
+	local seenIds = {}
+	for productKey, product in pairs(DEVELOPER_PRODUCTS) do
+		assert(
+			type(product.productId) == "number"
+				and product.productId >= 0
+				and product.productId == math.floor(product.productId),
+			"Invalid Developer Product ID for " .. tostring(productKey)
+		)
+		assert(
+			type(product.starshards) == "number"
+				and product.starshards > 0
+				and product.starshards == math.floor(product.starshards),
+			"Invalid Starshard amount for " .. tostring(productKey)
+		)
+		if product.productId > 0 then
+			assert(not seenIds[product.productId], "Developer Product IDs must be unique")
+			seenIds[product.productId] = true
+			DEVELOPER_PRODUCTS_BY_ID[product.productId] = product
 		end
 	end
 end
@@ -454,6 +501,7 @@ local function defaultData()
 		lastDailyClaimDay = 0,
 		lastWheelSpinDay = 0,
 		dailyStreak = 0,
+		processedReceipts = {},
 		ownedPets = {},
 	}
 end
@@ -465,6 +513,15 @@ local function cloneData(data)
 	local petLevels = {}
 	local evolvedPets = {}
 	local petXP = {}
+	local processedReceipts = {}
+
+	if type(data.processedReceipts) == "table" then
+		for purchaseId, processed in pairs(data.processedReceipts) do
+			if type(purchaseId) == "string" and #purchaseId <= 128 and processed == true then
+				processedReceipts[purchaseId] = true
+			end
+		end
+	end
 
 	if type(data.ownedPets) == "table" then
 		for petName, count in pairs(data.ownedPets) do
@@ -606,6 +663,7 @@ local function cloneData(data)
 			0,
 			1000
 		),
+		processedReceipts = processedReceipts,
 
 		worldsUnlocked = math.clamp(
 			math.floor(tonumber(data.worldsUnlocked) or 1),
@@ -777,6 +835,23 @@ local function stateForClient(data, player)
 		eggCost = EGG_COST,
 		eggOdds = EGG_ODDS,
 		gamePasses = gamePassStateForClient(player),
+		developerProducts = (function()
+			local offers = {}
+			for key, product in pairs(DEVELOPER_PRODUCTS) do
+				table.insert(offers, {
+					key = key,
+					name = product.name,
+					description = product.description,
+					starshards = product.starshards,
+					productId = product.productId,
+					configured = product.productId > 0,
+				})
+			end
+			table.sort(offers, function(a, b)
+				return a.starshards < b.starshards
+			end)
+			return offers
+		end)(),
 
 		enemiesDefeated = data.enemiesDefeated or 0,
 		emberfallCollected = data.emberfallCollected or 0,
