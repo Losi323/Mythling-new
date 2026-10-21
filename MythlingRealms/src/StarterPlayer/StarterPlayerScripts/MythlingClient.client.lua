@@ -8,6 +8,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local MarketplaceService = game:GetService("MarketplaceService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -27,6 +28,12 @@ local StateChanged = getRemote("StateChanged")
 local Notify = getRemote("Notify")
 local OpenEgg = getRemote("OpenEgg")
 local EquipPet = getRemote("EquipPet")
+local ClaimDailyReward = getRemote("ClaimDailyReward")
+local AttackEnemy = getRemote("AttackEnemy")
+local SpinWheel = getRemote("SpinWheel")
+local WheelResult = getRemote("WheelResult")
+local PartyAction = getRemote("PartyAction")
+local PartyUpdate = getRemote("PartyUpdate")
 
 --========================================================
 -- CONFIGURATION
@@ -59,13 +66,14 @@ local PET_INFO = {
 	Stormling = { emoji = "PET", rarity = "Rare", color = Color3.fromRGB(83, 177, 235) },
 	Glacub = { emoji = "PET", rarity = "Epic", color = Color3.fromRGB(120, 220, 255) },
 	Starwhisp = { emoji = "PET", rarity = "Legendary", color = Color3.fromRGB(255, 199, 73) },
+	AuroraStag = { emoji = "PET", rarity = "VIP", color = Color3.fromRGB(120, 240, 226) },
 }
 
 local PET_ORDER = {
 	"EmberFox", "Mossbun", "Tidefin",
 	"Cinderling", "Pebblit", "Bloomlet",
 	"Sunpup", "Duskmoth", "Voltkit", "Stormling",
-	"Glacub", "Starwhisp",
+	"Glacub", "Starwhisp", "AuroraStag",
 }
 
 local STARTERS = { "EmberFox", "Mossbun", "Tidefin" }
@@ -75,7 +83,15 @@ local currentMenu = nil
 local currentPet = nil
 local toastId = 0
 local hatchId = 0
+local activeHatchSuspense = nil
+local activeHatchResult = nil
 local busy = false
+local wheelBusy = false
+local wheelSpinAttempt = 0
+local wheelVisual = nil
+local wheelButton = nil
+local partyState = nil
+local partyInvites = {}
 
 --========================================================
 -- REMOTE HELPERS
@@ -650,6 +666,7 @@ local function showPetDetails(petName, amount)
 	details.TextYAlignment = Enum.TextYAlignment.Top
 
 	local equipped = getEquippedPet() == petName
+	local evolved = getPetEvolved(petName)
 	newButton(
 		card,
 		equipped and "EQUIPPED" or "Equip Pet",
@@ -670,12 +687,21 @@ local function showPetDetails(petName, amount)
 		equipped and COLORS.green or COLORS.accent
 	)
 
-	newButton(
+	local evolutionButton = newButton(
 		card,
-		"Evolution",
+		evolved and "ALREADY EVOLVED" or (equipped and "EVOLUTION" or "EQUIP TO EVOLVE"),
 		UDim2.new(0.44, 0, 0, 34),
 		UDim2.new(0.52, 0, 1, -42),
 		function()
+			if not equipped then
+				showToast("Equip this Mythling before evolving it.", COLORS.gold)
+				return
+			end
+			if evolved then
+				showToast("This Mythling has already evolved.", COLORS.gold)
+				return
+			end
+
 			local success = invokeRemote(EvolvePet)
 			if success then
 				showToast("Evolution request sent")
@@ -687,8 +713,10 @@ local function showPetDetails(petName, amount)
 				end)
 			end
 		end,
-		COLORS.panelLight
+		evolved and COLORS.green or (equipped and COLORS.panelLight or COLORS.border)
 	)
+	evolutionButton.Active = equipped and not evolved
+	evolutionButton.AutoButtonColor = equipped and not evolved
 
 	local note = newLabel(
 		content,
@@ -824,6 +852,7 @@ local function getRarityColor(rarity)
 		Rare = Color3.fromRGB(81, 177, 255),
 		Epic = Color3.fromRGB(190, 113, 255),
 		Legendary = Color3.fromRGB(255, 199, 73),
+		VIP = Color3.fromRGB(120, 240, 226),
 		Starter = COLORS.accentLight,
 	}
 	return colors[rarity] or COLORS.gold
@@ -832,6 +861,18 @@ end
 local function showEggResult(petName, rarity)
 	hatchId += 1
 	local thisHatch = hatchId
+
+	-- A new hatch replaces the previous visual instead of leaving an
+	-- abandoned suspense overlay or stacking result cards on the screen.
+	if activeHatchSuspense and activeHatchSuspense.Parent then
+		activeHatchSuspense:Destroy()
+	end
+	activeHatchSuspense = nil
+	if activeHatchResult and activeHatchResult.Parent then
+		activeHatchResult:Destroy()
+	end
+	activeHatchResult = nil
+
 	rarity = rarity or getPetRarity(petName)
 	local rarityColor = getRarityColor(rarity)
 
@@ -846,6 +887,7 @@ local function showEggResult(petName, rarity)
 	suspense.BorderSizePixel = 0
 	suspense.ZIndex = 80
 	suspense.Parent = gui
+	activeHatchSuspense = suspense
 
 	local panel = newFrame(
 		suspense,
@@ -860,7 +902,7 @@ local function showEggResult(petName, rarity)
 
 	local suspenseTitle = newLabel(
 		panel,
-		"A MYSTLING IS INSIDE...",
+		"A MYTHLING IS INSIDE...",
 		UDim2.new(1, -20, 0, 34),
 		UDim2.new(0, 10, 0, 12),
 		15,
@@ -1064,6 +1106,9 @@ local function showEggResult(petName, rarity)
 		):Play()
 
 		suspense:Destroy()
+		if activeHatchSuspense == suspense then
+			activeHatchSuspense = nil
+		end
 		task.delay(0.3, function()
 			if flash.Parent then
 				flash:Destroy()
@@ -1082,6 +1127,7 @@ local function showEggResult(petName, rarity)
 			UDim2.new(0.5, 0, 0.5, 0),
 			COLORS.background
 		)
+		activeHatchResult = result
 		result.AnchorPoint = Vector2.new(0.5, 0.5)
 		result.ZIndex = 90
 		stroke(result, rarityColor, rarity == "Legendary" and 4 or 2)
@@ -1163,8 +1209,10 @@ local function showEggResult(petName, rarity)
 			{ Size = UDim2.new(0, 330, 0, 245) }
 		):Play()
 
+		-- Each result owns its own timeout. A later hatch must not cancel
+		-- cleanup of this card, or an older result can remain on screen forever.
 		task.delay(12, function()
-			if result.Parent and thisHatch == hatchId then
+			if result.Parent then
 				result:Destroy()
 			end
 		end)
@@ -1219,9 +1267,26 @@ local function showEggShop()
 		COLORS.gold
 	)
 
+	-- Read the same odds table sent by the server so the shop display
+	-- cannot silently drift away from the actual egg roll configuration.
+	local eggOdds = currentState.eggOdds or {
+		Common = 45,
+		Uncommon = 25,
+		Rare = 18,
+		Epic = 9,
+		Legendary = 3,
+	}
+	local oddsText = string.format(
+		"Common %s%% - Uncommon %s%%\nRare %s%% - Epic %s%% - Legendary %s%%",
+		tostring(eggOdds.Common or 0),
+		tostring(eggOdds.Uncommon or 0),
+		tostring(eggOdds.Rare or 0),
+		tostring(eggOdds.Epic or 0),
+		tostring(eggOdds.Legendary or 0)
+	)
 	local odds = newLabel(
 		eggCard,
-		"Common 45% - Uncommon 25%\nRare 18% - Epic 9% - Legendary 3%",
+		oddsText,
 		UDim2.new(1, -115, 0, 40),
 		UDim2.new(0, 100, 0, 67),
 		10,
@@ -1267,8 +1332,8 @@ local function showEggShop()
 				showToast("Could not open the egg.", COLORS.red)
 			elseif type(result) == "table" and result.success == false then
 				showToast(result.message or "You cannot open this egg.", COLORS.red)
-			else
-				showToast("Egg request sent!", COLORS.green)
+			-- Successful hatches are announced by Notify with the server's
+			-- authoritative pet and rarity. Avoid a duplicate generic success toast.
 			end
 
 			task.delay(4.5, function()
@@ -1294,8 +1359,667 @@ local function showEggShop()
 end
 
 --========================================================
+-- DAILY REWARDS
+--========================================================
+
+local function showDailyReward()
+	openMenu("DailyReward", "DAILY REWARD")
+
+	local available = currentState.dailyRewardAvailable == true
+	local streak = tonumber(currentState.dailyRewardStreak) or 1
+	local reward = tonumber(currentState.dailyRewardAmount) or 100
+	local currentStreak = tonumber(currentState.dailyStreak) or 0
+
+	local intro = newLabel(
+		content,
+		"Log in every day to grow your Starshard reward. The streak is capped at 8 days.",
+		UDim2.new(1, -8, 0, 54),
+		UDim2.new(),
+		13,
+		COLORS.muted
+	)
+	intro.LayoutOrder = 1
+	intro.TextWrapped = true
+	intro.TextYAlignment = Enum.TextYAlignment.Top
+
+	local card = newFrame(
+		content,
+		"DailyRewardCard",
+		UDim2.new(1, -8, 0, 128),
+		UDim2.new(),
+		COLORS.panel
+	)
+	card.LayoutOrder = 2
+	stroke(card, COLORS.gold, 1.5)
+
+	local amountLabel = newLabel(
+		card,
+		available and ("+" .. formatNumber(reward) .. " STARSHARDS") or "REWARD CLAIMED",
+		UDim2.new(1, -20, 0, 34),
+		UDim2.new(0, 10, 0, 14),
+		20,
+		available and COLORS.gold or COLORS.green
+	)
+	amountLabel.TextXAlignment = Enum.TextXAlignment.Center
+	amountLabel.Font = Enum.Font.GothamBlack
+
+	local streakLabel = newLabel(
+		card,
+		"Current streak: " .. currentStreak .. " day(s)\nNext claim streak: " .. streak,
+		UDim2.new(1, -20, 0, 45),
+		UDim2.new(0, 10, 0, 48),
+		13,
+		COLORS.text
+	)
+	streakLabel.TextWrapped = true
+	streakLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+	local claim = newButton(
+		content,
+		available and "CLAIM DAILY REWARD" or "COME BACK TOMORROW",
+		UDim2.new(1, -8, 0, 42),
+		UDim2.new(),
+		function()
+			if not available then
+				showToast("Your daily reward is already claimed.", COLORS.gold)
+				return
+			end
+
+			local ok = invokeRemote(ClaimDailyReward)
+			if ok then
+				task.delay(0.25, function()
+					requestState()
+					if currentMenu == "DailyReward" then
+						showDailyReward()
+					end
+				end)
+			end
+		end,
+		available and COLORS.green or COLORS.panelLight
+	)
+	claim.LayoutOrder = 3
+	claim.Active = available
+	claim.AutoButtonColor = available
+
+	local schedule = newLabel(
+		content,
+		"Rewards: 100, 150, 200, 250, 300, 350, 400, then 450 Starshards per consecutive day.",
+		UDim2.new(1, -8, 0, 50),
+		UDim2.new(),
+		12,
+		COLORS.muted
+	)
+	schedule.LayoutOrder = 4
+	schedule.TextWrapped = true
+
+	local wheelCard = newFrame(
+		content,
+		"DailyWheelCard",
+		UDim2.new(1, -8, 0, 310),
+		UDim2.new(),
+		COLORS.panel
+	)
+	wheelCard.LayoutOrder = 5
+	stroke(wheelCard, COLORS.accent, 1.5)
+
+	local wheelTitle = newLabel(
+		wheelCard,
+		"DAILY STARSHARD WHEEL",
+		UDim2.new(1, -16, 0, 28),
+		UDim2.new(0, 8, 0, 8),
+		15,
+		COLORS.gold
+	)
+	wheelTitle.Font = Enum.Font.GothamBlack
+	wheelTitle.TextXAlignment = Enum.TextXAlignment.Center
+
+	local pointer = newLabel(
+		wheelCard,
+		"▼",
+		UDim2.new(0, 28, 0, 22),
+		UDim2.new(0.5, -14, 0, 36),
+		19,
+		COLORS.gold
+	)
+	pointer.TextXAlignment = Enum.TextXAlignment.Center
+
+	wheelVisual = newFrame(
+		wheelCard,
+		"WheelDisk",
+		UDim2.fromOffset(210, 210),
+		UDim2.new(0.5, -105, 0, 54),
+		COLORS.background
+	)
+	corner(wheelVisual, 999)
+	stroke(wheelVisual, COLORS.gold, 3)
+
+	local wheelEntries = currentState.wheelRewards or {
+		{amount = 100, weight = 40},
+		{amount = 250, weight = 30},
+		{amount = 500, weight = 18},
+		{amount = 1000, weight = 10},
+		{amount = 2500, weight = 2},
+	}
+	-- Five prize markers are evenly spaced around a circle. The result
+	-- animation rotates the server-selected marker under the top pointer.
+	local wheelPositions = {
+		UDim2.fromOffset(74, 20),
+		UDim2.fromOffset(139, 67),
+		UDim2.fromOffset(114, 143),
+		UDim2.fromOffset(34, 143),
+		UDim2.fromOffset(9, 67),
+	}
+	local wheelColors = {
+		Color3.fromRGB(74, 151, 255),
+		Color3.fromRGB(76, 205, 137),
+		Color3.fromRGB(255, 201, 86),
+		Color3.fromRGB(190, 113, 255),
+		Color3.fromRGB(255, 96, 111),
+	}
+	for index, entry in ipairs(wheelEntries) do
+		local position = wheelPositions[index]
+		if position then
+			local chip = newFrame(
+				wheelVisual,
+				"Prize_" .. index,
+				UDim2.fromOffset(62, 36),
+				position,
+				wheelColors[index] or COLORS.accent
+			)
+			corner(chip, 9)
+			local prizeText = newLabel(
+				chip,
+				formatNumber(tonumber(entry.amount) or 0),
+				UDim2.fromScale(1, 1),
+				UDim2.new(),
+				10,
+				COLORS.background
+			)
+			prizeText.Font = Enum.Font.GothamBlack
+			prizeText.TextXAlignment = Enum.TextXAlignment.Center
+		end
+	end
+
+	local center = newFrame(
+		wheelVisual,
+		"WheelCenter",
+		UDim2.fromOffset(42, 42),
+		UDim2.new(0.5, -21, 0.5, -21),
+		COLORS.panel
+	)
+	corner(center, 999)
+	stroke(center, COLORS.text, 1)
+	local star = newLabel(
+		center,
+		"★",
+		UDim2.fromScale(1, 1),
+		UDim2.new(),
+		22,
+		COLORS.gold
+	)
+	star.TextXAlignment = Enum.TextXAlignment.Center
+
+	wheelButton = newButton(
+		wheelCard,
+		currentState.dailyWheelAvailable and "SPIN THE WHEEL" or "COME BACK TOMORROW",
+		UDim2.new(1, -20, 0, 34),
+		UDim2.new(0, 10, 1, -42),
+		function()
+			if wheelBusy then return end
+			if not currentState.dailyWheelAvailable then
+				showToast("The daily wheel is already used.", COLORS.gold)
+				return
+			end
+
+			wheelBusy = true
+			wheelSpinAttempt += 1
+			local thisAttempt = wheelSpinAttempt
+			if wheelButton and wheelButton.Parent then
+				wheelButton.Text = "SPINNING..."
+				wheelButton.Active = false
+				wheelButton.AutoButtonColor = false
+			end
+			local ok = invokeRemote(SpinWheel)
+			if not ok then
+				wheelBusy = false
+				if wheelButton and wheelButton.Parent then
+					wheelButton.Text = "SPIN THE WHEEL"
+					wheelButton.Active = true
+					wheelButton.AutoButtonColor = true
+				end
+			end
+			task.delay(8, function()
+				if wheelBusy and wheelSpinAttempt == thisAttempt then
+					wheelBusy = false
+					if wheelButton and wheelButton.Parent then
+						local available = currentState.dailyWheelAvailable == true
+						wheelButton.Text = available and "SPIN THE WHEEL" or "COME BACK TOMORROW"
+						wheelButton.Active = available
+						wheelButton.AutoButtonColor = available
+					end
+					showToast("The wheel did not respond. Please refresh your state.", COLORS.red)
+				end
+			end)
+		end,
+		currentState.dailyWheelAvailable and COLORS.accent or COLORS.panelLight
+	)
+	wheelButton.LayoutOrder = 6
+	wheelButton.Active = currentState.dailyWheelAvailable
+	wheelButton.AutoButtonColor = currentState.dailyWheelAvailable
+
+	local oddsParts = {}
+	for _, entry in ipairs(wheelEntries) do
+		table.insert(
+			oddsParts,
+			formatNumber(tonumber(entry.amount) or 0)
+				.. " (" .. tostring(entry.weight or 0) .. "%)"
+		)
+	end
+	local wheelOdds = newLabel(
+		content,
+		"Prize odds: " .. table.concat(oddsParts, ", ") .. " Starshards.",
+		UDim2.new(1, -8, 0, 44),
+		UDim2.new(),
+		12,
+		COLORS.muted
+	)
+	wheelOdds.LayoutOrder = 6
+	wheelOdds.TextWrapped = true
+end
+
+--========================================================
 -- QUESTS AND PROGRESSION
 --========================================================
+
+local function showPremiumShop()
+	openMenu("PremiumShop", "SUPPORT MYTHLING REALMS")
+
+	local intro = newLabel(
+		content,
+		"Optional purchases. Every benefit is explained before you buy; Roblox displays the final price in its secure purchase window.",
+		UDim2.new(1, -8, 0, 56),
+		UDim2.new(),
+		13,
+		COLORS.muted
+	)
+	intro.LayoutOrder = 1
+	intro.TextWrapped = true
+	intro.TextYAlignment = Enum.TextYAlignment.Top
+
+	local passes = currentState.gamePasses or {}
+	for index, pass in ipairs(passes) do
+		local card = newFrame(
+			content,
+			"Pass_" .. tostring(pass.key),
+			UDim2.new(1, -8, 0, 112),
+			UDim2.new(),
+			COLORS.panel
+		)
+		card.LayoutOrder = index + 1
+		stroke(card, pass.key == "VIPCompanion" and COLORS.gold or COLORS.accent, 1.3)
+
+		local titleLabel = newLabel(
+			card,
+			tostring(pass.name or "Game Pass"),
+			UDim2.new(1, -18, 0, 26),
+			UDim2.new(0, 9, 0, 8),
+			15,
+			pass.key == "VIPCompanion" and COLORS.gold or COLORS.text
+		)
+		titleLabel.Font = Enum.Font.GothamBold
+
+		local description = newLabel(
+			card,
+			tostring(pass.description or "Optional cosmetic or gameplay benefit."),
+			UDim2.new(1, -18, 0, 32),
+			UDim2.new(0, 9, 0, 35),
+			11,
+			COLORS.muted
+		)
+		description.TextWrapped = true
+		description.TextYAlignment = Enum.TextYAlignment.Top
+
+		local owned = pass.owned == true
+		local passId = tonumber(pass.passId) or 0
+		local configured = pass.configured == true and passId > 0
+		local buttonText = owned and "OWNED" or (configured and "BUY PASS" or "SETUP REQUIRED")
+		local actionButton = newButton(
+			card,
+			buttonText,
+			UDim2.new(0, 130, 0, 30),
+			UDim2.new(1, -140, 1, -36),
+			function()
+				if owned then
+					showToast("You already own this pass.", COLORS.green)
+					return
+				end
+				if not configured then
+					showToast("This pass is disabled until its real ID is configured.", COLORS.gold)
+					return
+				end
+
+				local ok, err = pcall(function()
+					MarketplaceService:PromptGamePassPurchase(player, passId)
+				end)
+				if not ok then
+					warn("[MythlingRealms] Could not open Game Pass prompt:", err)
+					showToast("Roblox could not open the purchase prompt.", COLORS.red)
+				end
+			end,
+			owned and COLORS.green or (configured and COLORS.accent or COLORS.panelLight)
+		)
+		actionButton.Active = not owned and configured
+		actionButton.AutoButtonColor = not owned and configured
+	end
+
+	local products = currentState.developerProducts or {}
+	for index, product in ipairs(products) do
+		local card = newFrame(
+			content,
+			"Product_" .. tostring(product.key),
+			UDim2.new(1, -8, 0, 112),
+			UDim2.new(),
+			COLORS.panel
+		)
+		card.LayoutOrder = #passes + index + 1
+		stroke(card, COLORS.green, 1.2)
+
+		local titleLabel = newLabel(
+			card,
+			tostring(product.name or "Starshard Pack"),
+			UDim2.new(1, -18, 0, 26),
+			UDim2.new(0, 9, 0, 8),
+			15,
+			COLORS.green
+		)
+		titleLabel.Font = Enum.Font.GothamBold
+
+		local description = newLabel(
+			card,
+			tostring(product.description or "A Starshard currency pack.")
+				.. "\n+" .. formatNumber(tonumber(product.starshards) or 0) .. " Starshards",
+			UDim2.new(1, -18, 0, 38),
+			UDim2.new(0, 9, 0, 35),
+			11,
+			COLORS.muted
+		)
+		description.TextWrapped = true
+		description.TextYAlignment = Enum.TextYAlignment.Top
+
+		local productId = tonumber(product.productId) or 0
+		local configured = product.configured == true and productId > 0
+		local actionButton = newButton(
+			card,
+			configured and "BUY STARSHARDS" or "SETUP REQUIRED",
+			UDim2.new(0, 142, 0, 30),
+			UDim2.new(1, -152, 1, -36),
+			function()
+				if not configured then
+					showToast("This pack is disabled until its real Developer Product ID is configured.", COLORS.gold)
+					return
+				end
+
+				local ok, err = pcall(function()
+					MarketplaceService:PromptProductPurchase(player, productId)
+				end)
+				if not ok then
+					warn("[MythlingRealms] Could not open Developer Product prompt:", err)
+					showToast("Roblox could not open the purchase prompt.", COLORS.red)
+				end
+			end,
+			configured and COLORS.green or COLORS.panelLight
+		)
+		actionButton.Active = configured
+		actionButton.AutoButtonColor = configured
+	end
+
+	local note = newLabel(
+		content,
+		"Prices are shown by Roblox before purchase. Purchases stay disabled until you configure real IDs in MythlingServer.server.lua; no fake prices or IDs are used.",
+		UDim2.new(1, -8, 0, 48),
+		UDim2.new(),
+		12,
+		COLORS.muted
+	)
+	note.LayoutOrder = #passes + #products + 2
+	note.TextWrapped = true
+end
+
+--========================================================
+-- PARTY / CO-OP
+--========================================================
+
+local function showParty()
+	openMenu("Party", "PARTY & CO-OP")
+
+	local party = partyState
+	local intro = newLabel(
+		content,
+		"Create a party of up to 4 players, invite friends, and hunt creatures together. Nearby contributors share creature rewards.",
+		UDim2.new(1, -8, 0, 56),
+		UDim2.new(),
+		13,
+		COLORS.muted
+	)
+	intro.LayoutOrder = 1
+	intro.TextWrapped = true
+	intro.TextYAlignment = Enum.TextYAlignment.Top
+
+	local summary = newFrame(
+		content,
+		"PartySummary",
+		UDim2.new(1, -8, 0, 112),
+		UDim2.new(),
+		COLORS.panel
+	)
+	summary.LayoutOrder = 2
+	stroke(summary, party and COLORS.green or COLORS.border, 1.2)
+
+	local heading = newLabel(
+		summary,
+		party and ("PARTY · " .. tostring(party.memberCount or 1) .. "/" .. tostring(party.maxMembers or 4)) or "YOU ARE NOT IN A PARTY",
+		UDim2.new(1, -18, 0, 26),
+		UDim2.new(0, 9, 0, 8),
+		15,
+		party and COLORS.green or COLORS.text
+	)
+	heading.Font = Enum.Font.GothamBold
+
+	local memberNames = {}
+	if party and type(party.members) == "table" then
+		for _, member in ipairs(party.members) do
+			local label = tostring(member.name or member.username or "Player")
+			if member.isLeader then label ..= " (Leader)" end
+			table.insert(memberNames, label)
+		end
+	end
+	local members = newLabel(
+		summary,
+		party and table.concat(memberNames, "\n") or "Invite friends to start a cooperative party.",
+		UDim2.new(1, -18, 0, 52),
+		UDim2.new(0, 9, 0, 36),
+		12,
+		COLORS.muted
+	)
+	members.TextWrapped = true
+	members.TextYAlignment = Enum.TextYAlignment.Top
+
+	if party then
+		local leaveButton = newButton(
+			content,
+			party.isLeader and "DISBAND PARTY" or "LEAVE PARTY",
+			UDim2.new(1, -8, 0, 36),
+			UDim2.new(),
+			function()
+				invokeRemote(PartyAction, "LEAVE")
+			end,
+			COLORS.red
+		)
+		leaveButton.LayoutOrder = 3
+	end
+
+	local inviteHeading = newLabel(
+		content,
+		"PARTY INVITATIONS",
+		UDim2.new(1, -8, 0, 25),
+		UDim2.new(),
+		13,
+		COLORS.gold
+	)
+	inviteHeading.LayoutOrder = 4
+
+	local inviteCount = 0
+	for _, invitation in ipairs(partyInvites) do
+		inviteCount += 1
+		local card = newFrame(
+			content,
+			"PartyInvite_" .. tostring(invitation.leaderUserId),
+			UDim2.new(1, -8, 0, 76),
+			UDim2.new(),
+			COLORS.panel
+		)
+		card.LayoutOrder = 4 + inviteCount
+		stroke(card, COLORS.gold, 1)
+
+		local inviteLabel = newLabel(
+			card,
+			tostring(invitation.leaderName or "Player") .. " invited you",
+			UDim2.new(1, -16, 0, 24),
+			UDim2.new(0, 8, 0, 6),
+			12,
+			COLORS.text
+		)
+		inviteLabel.Font = Enum.Font.GothamBold
+
+		newButton(
+			card,
+			"ACCEPT",
+			UDim2.new(0.46, -5, 0, 30),
+			UDim2.new(0, 8, 1, -36),
+			function()
+				invokeRemote(PartyAction, "ACCEPT", invitation.leaderUserId)
+			end,
+			COLORS.green
+		)
+		newButton(
+			card,
+			"DECLINE",
+			UDim2.new(0.46, -5, 0, 30),
+			UDim2.new(0.54, 0, 1, -36),
+			function()
+				invokeRemote(PartyAction, "DECLINE", invitation.leaderUserId)
+			end,
+			COLORS.panelLight
+		)
+	end
+
+	if inviteCount == 0 then
+		local noInvites = newLabel(
+			content,
+			"No pending invitations.",
+			UDim2.new(1, -8, 0, 30),
+			UDim2.new(),
+			12,
+			COLORS.muted
+		)
+		noInvites.LayoutOrder = 5
+	end
+
+	local canInvite = not party or party.isLeader == true
+	local partyFull = party and (tonumber(party.memberCount) or 1) >= (tonumber(party.maxMembers) or 4)
+	local playerHeading = newLabel(
+		content,
+		canInvite and "INVITE A PLAYER" or "ONLY THE PARTY LEADER CAN INVITE",
+		UDim2.new(1, -8, 0, 25),
+		UDim2.new(),
+		13,
+		COLORS.accentLight
+	)
+	playerHeading.LayoutOrder = 6 + inviteCount
+
+	local candidates = {}
+	for _, candidate in ipairs(Players:GetPlayers()) do
+		if candidate ~= player and candidate.Parent == Players then
+			table.insert(candidates, candidate)
+		end
+	end
+	table.sort(candidates, function(a, b)
+		local an = a.DisplayName ~= "" and a.DisplayName or a.Name
+		local bn = b.DisplayName ~= "" and b.DisplayName or b.Name
+		return string.lower(an) < string.lower(bn)
+	end)
+
+	local candidateOrder = 7 + inviteCount
+	local availableCandidates = 0
+	for _, candidate in ipairs(candidates) do
+		local alreadyMember = false
+		if party and type(party.members) == "table" then
+			for _, member in ipairs(party.members) do
+				if member.userId == candidate.UserId then
+					alreadyMember = true
+					break
+				end
+			end
+		end
+
+		if not alreadyMember then
+			availableCandidates += 1
+			local candidateCard = newFrame(
+				content,
+				"InvitePlayer_" .. tostring(candidate.UserId),
+				UDim2.new(1, -8, 0, 54),
+				UDim2.new(),
+				COLORS.panel
+			)
+			candidateCard.LayoutOrder = candidateOrder
+			candidateOrder += 1
+
+			local name = candidate.DisplayName ~= "" and candidate.DisplayName or candidate.Name
+			local candidateLabel = newLabel(
+				candidateCard,
+				name,
+				UDim2.new(1, -125, 1, 0),
+				UDim2.new(0, 8, 0, 0),
+				12,
+				COLORS.text
+			)
+			candidateLabel.TextTruncate = Enum.TextTruncate.AtEnd
+
+			local inviteButton = newButton(
+				candidateCard,
+				partyFull and "FULL" or (canInvite and "INVITE" or "LEADER ONLY"),
+				UDim2.new(0, 112, 0, 32),
+				UDim2.new(1, -120, 0.5, -16),
+				function()
+					if not canInvite then
+						showToast("Only the party leader can invite players.", COLORS.gold)
+						return
+					end
+					if partyFull then
+						showToast("Your party is full.", COLORS.gold)
+						return
+					end
+					invokeRemote(PartyAction, "INVITE", candidate.UserId)
+				end,
+				canInvite and not partyFull and COLORS.accent or COLORS.panelLight
+			)
+			inviteButton.Active = canInvite and not partyFull
+			inviteButton.AutoButtonColor = canInvite and not partyFull
+		end
+	end
+
+	if availableCandidates == 0 then
+		local noPlayers = newLabel(
+			content,
+			"No other players are available in this server right now.",
+			UDim2.new(1, -8, 0, 34),
+			UDim2.new(),
+			12,
+			COLORS.muted
+		)
+		noPlayers.LayoutOrder = candidateOrder
+	end
+end
 
 local function showQuests()
 	openMenu("Quests", "QUESTS & PROGRESS")
@@ -1310,93 +2034,75 @@ local function showQuests()
 	)
 	intro.LayoutOrder = 1
 
-	local quests = currentState.quests or currentState.questProgress
-	local questIndex = 0
+	-- The server currently exposes one active quest as flat fields,
+	-- not as a quests dictionary. Read that contract directly.
+	local questTitle = currentState.questTitle or "Loading quest..."
+	local questDescription = currentState.questDescription or "No quest description available."
+	local questProgress = tonumber(currentState.questProgress) or 0
+	local questTarget = tonumber(currentState.questTarget) or 0
+	local questReward = tonumber(currentState.questReward) or 0
+	local questCompleted = currentState.questCompleted == true
+	local allQuestsComplete = currentState.allQuestsComplete == true
 
-	if type(quests) == "table" then
-		for questName, questData in pairs(quests) do
-			questIndex += 1
+	local card = newFrame(
+		content,
+		"ActiveQuest",
+		UDim2.new(1, -8, 0, 112),
+		UDim2.new(),
+		COLORS.panel
+	)
+	card.LayoutOrder = 2
+	stroke(card, questCompleted and COLORS.green or COLORS.border, 1.2)
 
-			local description = tostring(questName)
-			local progress = ""
+	local titleLabel = newLabel(
+		card,
+		allQuestsComplete and "ALL QUESTS COMPLETE" or questTitle,
+		UDim2.new(1, -20, 0, 24),
+		UDim2.new(0, 10, 0, 7),
+		13,
+		COLORS.text
+	)
+	titleLabel.Font = Enum.Font.GothamBold
 
-			if type(questData) == "table" then
-				description = questData.description or questData.name or description
-				local current = questData.progress or questData.current or 0
-				local goal = questData.goal or questData.target or 0
-				progress = tostring(current) .. " / " .. tostring(goal)
+	newLabel(
+		card,
+		allQuestsComplete and "You have completed all current quests." or questDescription,
+		UDim2.new(1, -20, 0, 26),
+		UDim2.new(0, 10, 0, 32),
+		11,
+		COLORS.muted
+	)
+
+	newLabel(
+		card,
+		allQuestsComplete and "Rewards claimed" or (
+			tostring(questProgress) .. " / " .. tostring(questTarget)
+			.. "  •  Reward: " .. tostring(questReward) .. " Starshards"
+		),
+		UDim2.new(1, -20, 0, 22),
+		UDim2.new(0, 10, 0, 61),
+		11,
+		questCompleted and COLORS.green or COLORS.gold
+	)
+
+	local claimButton = newButton(
+		card,
+		allQuestsComplete and "COMPLETED" or (questCompleted and "CLAIM REWARD" or "IN PROGRESS"),
+		UDim2.new(0, 126, 0, 30),
+		UDim2.new(1, -136, 1, -37),
+		function()
+			if allQuestsComplete then
+				showToast("All starter quests are completed!", COLORS.green)
+				return
+			end
+			if not questCompleted then
+				showToast("Complete the objective before claiming.", COLORS.gold)
+				return
 			end
 
-			local card = newFrame(
-				content,
-				"Quest_" .. tostring(questIndex),
-				UDim2.new(1, -8, 0, 78),
-				UDim2.new(),
-				COLORS.panel
-			)
-			card.LayoutOrder = questIndex + 1
-
-			newLabel(
-				card,
-				description,
-				UDim2.new(0.68, -8, 0, 38),
-				UDim2.new(0, 10, 0, 4),
-				12,
-				COLORS.text
-			)
-
-			newLabel(
-				card,
-				progress,
-				UDim2.new(0.68, -8, 0, 22),
-				UDim2.new(0, 10, 0, 44),
-				11,
-				COLORS.muted
-			)
-
-			newButton(
-				card,
-				"Claim",
-				UDim2.new(0.25, 0, 0, 32),
-				UDim2.new(0.72, 0, 0.5, -16),
-				function()
-					local ok = invokeRemote(ClaimQuest, questName)
-					if ok then
-						showToast("Claim request sent")
-						task.delay(0.3, function()
-							requestState()
-							if currentMenu == "Quests" then
-								showQuests()
-							end
-						end)
-					end
-				end,
-				COLORS.green
-			)
-		end
-	end
-
-	if questIndex == 0 then
-		local fallback = newLabel(
-			content,
-			"Quest details will appear here when provided by the server.",
-			UDim2.new(1, -8, 0, 54),
-			UDim2.new(),
-			13,
-			COLORS.muted
-		)
-		fallback.LayoutOrder = 2
-	end
-
-	local evolutionButton = newButton(
-		content,
-		"EVOLVE EQUIPPED PET",
-		UDim2.new(1, -8, 0, 42),
-		UDim2.new(),
-		function()
-			local ok = invokeRemote(EvolvePet)
+			local ok = invokeRemote(ClaimQuest, questTitle)
 			if ok then
-				showToast("Evolution request sent")
+				showToast("Quest claim sent", COLORS.green)
 				task.delay(0.3, function()
 					requestState()
 					if currentMenu == "Quests" then
@@ -1405,39 +2111,138 @@ local function showQuests()
 				end)
 			end
 		end,
-		COLORS.accent
+		questCompleted and COLORS.green or COLORS.panelLight
+	)
+	claimButton.Active = questCompleted and not allQuestsComplete
+	claimButton.AutoButtonColor = questCompleted and not allQuestsComplete
+
+	local equippedPetName = getEquippedPet()
+	local equippedLevel = tonumber(currentState.petLevel) or 1
+	local equippedEvolved = currentState.petEvolved == true
+	local canEvolve = currentState.canEvolve == true
+	local evolutionLabel
+	if not equippedPetName then
+		evolutionLabel = "CHOOSE A MYTHLING FIRST"
+	elseif equippedEvolved then
+		evolutionLabel = "MYTHLING ALREADY EVOLVED"
+	elseif equippedLevel < 5 then
+		evolutionLabel = "REACH LEVEL 5 TO EVOLVE"
+	elseif (tonumber(currentState.totalCollected) or 0) < 25 then
+		evolutionLabel = "COLLECT 25 CRYSTALS TO EVOLVE"
+	elseif getCurrency() < (tonumber(currentState.evolutionCost) or 500) then
+		evolutionLabel = "NEED 500 STARSHARDS TO EVOLVE"
+	else
+		evolutionLabel = "EVOLVE EQUIPPED MYTHLING"
+	end
+
+	local evolutionButton = newButton(
+		content,
+		evolutionLabel,
+		UDim2.new(1, -8, 0, 42),
+		UDim2.new(),
+		function()
+			if not canEvolve then
+				showToast("Evolution requires level 5, 25 crystals and 500 Starshards.", COLORS.gold)
+				return
+			end
+			local ok = invokeRemote(EvolvePet)
+			if ok then
+				task.delay(0.3, function()
+					requestState()
+					if currentMenu == "Quests" then
+						showQuests()
+					end
+				end)
+			end
+		end,
+		canEvolve and COLORS.accent or COLORS.panelLight
 	)
 	evolutionButton.LayoutOrder = 100
+	evolutionButton.Active = canEvolve
+	evolutionButton.AutoButtonColor = canEvolve
+
+	local worldsUnlocked = tonumber(currentState.worldsUnlocked) or 1
+	local worldUnlockCost = tonumber(currentState.worldUnlockCost) or 1000
+	local canUnlockWorld = currentState.canUnlockWorld == true
+	local unlockLabel
+	if worldsUnlocked >= 2 then
+		unlockLabel = "EMBERFALL UNLOCKED"
+	elseif not getEquippedPet() then
+		unlockLabel = "CHOOSE A MYTHLING FIRST"
+	elseif (tonumber(currentState.petLevel) or 1) < 5 then
+		unlockLabel = "REACH LEVEL 5 TO UNLOCK"
+	elseif getCurrency() < worldUnlockCost then
+		unlockLabel = "NEED " .. formatNumber(worldUnlockCost) .. " STARSHARDS"
+	else
+		unlockLabel = "UNLOCK EMBERFALL"
+	end
 
 	local unlockButton = newButton(
 		content,
-		"UNLOCK EMBERFALL",
+		unlockLabel,
 		UDim2.new(1, -8, 0, 42),
 		UDim2.new(),
 		function()
+			if worldsUnlocked >= 2 then
+				showToast("Emberfall is already unlocked.", COLORS.green)
+				return
+			end
+			if not canUnlockWorld then
+				showToast("Reach level 5 and collect " .. formatNumber(worldUnlockCost) .. " Starshards.", COLORS.gold)
+				return
+			end
 			local ok = invokeRemote(UnlockWorld)
 			if ok then
-				showToast("World unlock request sent")
+				task.delay(0.25, function()
+					requestState()
+					if currentMenu == "Quests" then showQuests() end
+				end)
 			end
 		end,
-		COLORS.panelLight
+		worldsUnlocked >= 2 and COLORS.green or (canUnlockWorld and COLORS.accent or COLORS.panelLight)
 	)
 	unlockButton.LayoutOrder = 101
+	unlockButton.Active = worldsUnlocked < 2 and canUnlockWorld
+	unlockButton.AutoButtonColor = unlockButton.Active
+
+	local upgradeCost = tonumber(currentState.upgradeCost) or 50
+	local canUpgrade = equippedPetName ~= nil
+		and equippedLevel < 50
+		and getCurrency() >= upgradeCost
+	local upgradeLabel
+	if not equippedPetName then
+		upgradeLabel = "CHOOSE A MYTHLING FIRST"
+	elseif equippedLevel >= 50 then
+		upgradeLabel = "MYTHLING LEVEL MAX"
+	elseif getCurrency() < upgradeCost then
+		upgradeLabel = "NEED " .. formatNumber(upgradeCost) .. " STARSHARDS"
+	else
+		upgradeLabel = "BUY UPGRADE · " .. formatNumber(upgradeCost) .. " STARSHARDS"
+	end
 
 	local upgradeButton = newButton(
 		content,
-		"BUY UPGRADE",
+		upgradeLabel,
 		UDim2.new(1, -8, 0, 42),
 		UDim2.new(),
 		function()
+			if not canUpgrade then
+				showToast("Choose a Mythling and have enough Starshards for its next level.", COLORS.gold)
+				return
+			end
 			local ok = invokeRemote(BuyUpgrade)
 			if ok then
-				showToast("Upgrade request sent")
+				task.delay(0.25, function()
+					requestState()
+					if currentMenu == "Quests" then showQuests() end
+				end)
 			end
 		end,
-		COLORS.panelLight
+		canUpgrade and COLORS.accent or COLORS.panelLight
 	)
 	upgradeButton.LayoutOrder = 102
+	upgradeButton.Active = canUpgrade
+	upgradeButton.AutoButtonColor = canUpgrade
 end
 
 --========================================================
@@ -1462,37 +2267,45 @@ local function showStarterSelection()
 		local card = newFrame(
 			content,
 			"Starter_" .. petName,
-			UDim2.new(1, -8, 0, 100),
+			UDim2.new(1, -8, 0, 116),
 			UDim2.new(),
 			COLORS.panel
 		)
 		card.LayoutOrder = index + 1
 		stroke(card, info.color, 1.2)
 
-		local icon = newLabel(
-			card,
-			info.emoji,
-			UDim2.new(0, 75, 0, 75),
-			UDim2.new(0, 8, 0, 10),
-			43,
-			info.color
-		)
-		icon.TextXAlignment = Enum.TextXAlignment.Center
+		makePetBadge(card, petName, 70, UDim2.new(0, 10, 0, 15), 3)
 
+		local definition = currentState.pets and currentState.pets[petName]
+		local displayName = definition and definition.displayName or petName
 		newLabel(
 			card,
-			petName,
-			UDim2.new(0.48, 0, 0, 30),
-			UDim2.new(0, 88, 0, 14),
+			displayName,
+			UDim2.new(0.46, 0, 0, 28),
+			UDim2.new(0, 88, 0, 12),
 			15,
 			COLORS.text
 		)
+
+		local elementDescription = definition
+			and (tostring(definition.element or "Mythling") .. " · " .. tostring(definition.description or "Ready to explore."))
+			or "Ready to explore."
+		local description = newLabel(
+			card,
+			elementDescription,
+			UDim2.new(0.48, 0, 0, 34),
+			UDim2.new(0, 88, 0, 42),
+			11,
+			COLORS.muted
+		)
+		description.TextWrapped = true
+		description.TextYAlignment = Enum.TextYAlignment.Top
 
 		newButton(
 			card,
 			"Choose",
 			UDim2.new(0, 105, 0, 34),
-			UDim2.new(1, -115, 0.5, -17),
+			UDim2.new(1, -115, 1, -38),
 			function()
 				local ok = invokeRemote(ChooseStarter, petName)
 				if ok then
@@ -1539,6 +2352,65 @@ local currencyLabel = newLabel(
 )
 currencyLabel.Font = Enum.Font.GothamBold
 currencyLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+local eventBanner = newFrame(
+	hud,
+	"ActiveEventBanner",
+	UDim2.new(0, 390, 0, 44),
+	UDim2.new(0.5, -195, 0, 12),
+	COLORS.background
+)
+eventBanner.BackgroundTransparency = 0.08
+stroke(eventBanner, COLORS.accentLight, 1)
+
+local eventBannerLabel = newLabel(
+	eventBanner,
+	"EVENT: LOADING...",
+	UDim2.new(1, -12, 1, -6),
+	UDim2.new(0, 6, 0, 3),
+	11,
+	COLORS.text
+)
+eventBannerLabel.Font = Enum.Font.GothamBold
+eventBannerLabel.TextXAlignment = Enum.TextXAlignment.Center
+eventBannerLabel.TextWrapped = true
+
+local function positionEventBanner()
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+
+	if camera.ViewportSize.X < 600 then
+		eventBanner.Size = UDim2.new(0, 270, 0, 38)
+		eventBanner.Position = UDim2.new(0.5, -135, 0, 58)
+		eventBannerLabel.TextSize = 10
+	else
+		eventBanner.Size = UDim2.new(0, 390, 0, 44)
+		eventBanner.Position = UDim2.new(0.5, -195, 0, 12)
+		eventBannerLabel.TextSize = 11
+	end
+end
+
+positionEventBanner()
+if workspace.CurrentCamera then
+	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(positionEventBanner)
+end
+
+local function updateEventBanner()
+	local eventInfo = currentState.activeEvent
+	if type(eventInfo) ~= "table" then
+		eventBannerLabel.Text = "EVENT: LOADING..."
+		return
+	end
+
+	local secondsRemaining = math.max(0, (tonumber(eventInfo.endsAt) or os.time()) - os.time())
+	local minutesRemaining = math.ceil(secondsRemaining / 60)
+	local compactDescription = eventInfo.id == "CRYSTAL_RUSH"
+		and "+50% crystal rewards"
+		or "+50% creature rewards"
+	eventBannerLabel.Text = string.upper(tostring(eventInfo.name or "WORLD EVENT"))
+		.. " · " .. compactDescription
+		.. " (" .. minutesRemaining .. "m)"
+end
 --========================================================
 -- EQUIPPED MYTHLING STATUS PANEL
 --========================================================
@@ -1624,18 +2496,26 @@ local evolveHudButton = newButton(
 evolveHudButton.TextSize = 11
 evolveHudButton.Font = Enum.Font.GothamBold
 
+local initialViewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize
+local compactNavigation = initialViewport ~= nil
+	and (initialViewport.X < 600 or initialViewport.Y < 650)
+local navButtonHeight = compactNavigation and 40 or 48
+local navBarWidth = compactNavigation and 116 or 132
+local navGap = compactNavigation and 4 or 7
+local navBarHeight = compactNavigation and 338 or 410
+
 local buttonBar = newFrame(
 	hud,
 	"ButtonBar",
-	UDim2.new(0, 76, 0, 246),
-	UDim2.new(0, 12, 0.5, -123),
+	UDim2.new(0, navBarWidth, 0, navBarHeight),
+	UDim2.new(0, 12, 0.5, -navBarHeight / 2),
 	COLORS.background
 )
 buttonBar.BackgroundTransparency = 0.12
 stroke(buttonBar, COLORS.border, 1)
 
 local barLayout = Instance.new("UIListLayout")
-barLayout.Padding = UDim.new(0, 7)
+barLayout.Padding = UDim.new(0, navGap)
 barLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 barLayout.SortOrder = Enum.SortOrder.LayoutOrder
 barLayout.Parent = buttonBar
@@ -1652,7 +2532,7 @@ local function addHudButton(order, iconKind, label, callback, color)
 	local button = newButton(
 		buttonBar,
 		"",
-		UDim2.new(1, 0, 0, 48),
+		UDim2.new(1, 0, 0, navButtonHeight),
 		UDim2.new(),
 		callback,
 		color or COLORS.panelLight
@@ -1661,7 +2541,9 @@ local function addHudButton(order, iconKind, label, callback, color)
 	button.Text = ""
 	button.AutoButtonColor = true
 
-	local iconX, iconY, iconSize = 8, 7, 34
+	local iconSize = compactNavigation and 28 or 34
+	local iconX = 8
+	local iconY = math.floor((navButtonHeight - iconSize) / 2)
 	if iconKind == "Egg" then
 		makeEggBadge(button, iconSize, UDim2.fromOffset(iconX, iconY), COLORS.gold)
 	elseif iconKind == "Pet" then
@@ -1669,8 +2551,9 @@ local function addHudButton(order, iconKind, label, callback, color)
 	else
 		local icon = Instance.new("Frame")
 		icon.Name = iconKind .. "Icon"
-		icon.Size = UDim2.fromOffset(28, 28)
-		icon.Position = UDim2.fromOffset(11, 10)
+		local baseIconSize = compactNavigation and 24 or 28
+		icon.Size = UDim2.fromOffset(baseIconSize, baseIconSize)
+		icon.Position = UDim2.fromOffset(10, math.floor((navButtonHeight - baseIconSize) / 2))
 		icon.BackgroundColor3 = iconKind == "Quest" and COLORS.gold or COLORS.accentLight
 		icon.BorderSizePixel = 0
 		icon.ZIndex = 3
@@ -1703,8 +2586,8 @@ local function addHudButton(order, iconKind, label, callback, color)
 	textLabel.Name = "NavigationLabel"
 	textLabel.BackgroundTransparency = 1
 	textLabel.BorderSizePixel = 0
-	textLabel.Position = UDim2.fromOffset(47, 0)
-	textLabel.Size = UDim2.new(1, -53, 1, 0)
+	textLabel.Position = UDim2.fromOffset(compactNavigation and 41 or 47, 0)
+	textLabel.Size = UDim2.new(1, compactNavigation and -47 or -53, 1, 0)
 	textLabel.Font = Enum.Font.GothamBold
 	textLabel.Text = label
 	textLabel.TextColor3 = COLORS.text
@@ -1719,6 +2602,16 @@ end
 addHudButton(1, "Pet", "PETS", showPets, COLORS.accent)
 addHudButton(2, "Egg", "EGGS", showEggShop, COLORS.panelLight)
 addHudButton(3, "Quest", "QUESTS", showQuests, COLORS.panelLight)
+addHudButton(4, "Daily", "DAILY", showDailyReward, COLORS.panelLight)
+addHudButton(5, "Fight", "ATTACK", function()
+	if not getEquippedPet() then
+		showToast("Choose a starter Mythling first.", COLORS.gold)
+		return
+	end
+	invokeRemote(AttackEnemy)
+end, COLORS.red)
+addHudButton(6, "Shop", "SHOP", showPremiumShop, COLORS.panelLight)
+addHudButton(7, "Party", "PARTY", showParty, COLORS.panelLight)
 
 --========================================================
 -- STATE RENDERING
@@ -1726,6 +2619,7 @@ addHudButton(3, "Quest", "QUESTS", showQuests, COLORS.panelLight)
 
 function renderState()
 	currencyLabel.Text = "STARSHARDS: " .. formatNumber(getCurrency())
+	updateEventBanner()
 
 	local equipped = getEquippedPet()
 	if type(equipped) ~= "string" then
@@ -1791,6 +2685,12 @@ function renderState()
 		showPets()
 	elseif currentMenu == "EggShop" then
 		showEggShop()
+	elseif currentMenu == "DailyReward" then
+		showDailyReward()
+	elseif currentMenu == "PremiumShop" then
+		showPremiumShop()
+	elseif currentMenu == "Party" then
+		showParty()
 	elseif currentMenu == "Quests" then
 		showQuests()
 	elseif currentMenu == "PetDetails" and currentPet then
@@ -1803,6 +2703,24 @@ end
 -- SERVER NOTIFICATIONS
 --========================================================
 
+if PartyUpdate:IsA("RemoteEvent") then
+	PartyUpdate.OnClientEvent:Connect(function(kind, payload, invites)
+		if kind == "SYNC" then
+			partyState = type(payload) == "table" and payload or nil
+			partyInvites = type(invites) == "table" and invites or {}
+			if currentMenu == "Party" then
+				showParty()
+			end
+		elseif kind == "INVITE" then
+			local leaderName = tostring(invites or "A player")
+			showToast(leaderName .. " invited you to a party.", COLORS.accentLight)
+			if currentMenu == "Party" then
+				showParty()
+			end
+		end
+	end)
+end
+
 if StateChanged:IsA("RemoteEvent") then
 	StateChanged.OnClientEvent:Connect(function(newState)
 		if type(newState) == "table" then
@@ -1811,6 +2729,39 @@ if StateChanged:IsA("RemoteEvent") then
 			requestState()
 		end
 		renderState()
+	end)
+end
+
+if WheelResult:IsA("RemoteEvent") then
+	WheelResult.OnClientEvent:Connect(function(rewardIndex, rewardAmount)
+		local index = math.clamp(math.floor(tonumber(rewardIndex) or 1), 1, 5)
+		local amount = math.max(0, math.floor(tonumber(rewardAmount) or 0))
+		local thisVisual = wheelVisual
+
+		wheelSpinAttempt += 1
+		wheelBusy = false
+		if wheelButton and wheelButton.Parent then
+			wheelButton.Text = "COME BACK TOMORROW"
+			wheelButton.Active = false
+			wheelButton.AutoButtonColor = false
+		end
+
+		if thisVisual and thisVisual.Parent then
+			local targetRotation = thisVisual.Rotation + 1440 + (((6 - index) % 5) * 72)
+			local tween = TweenService:Create(
+				thisVisual,
+				TweenInfo.new(3.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+				{ Rotation = targetRotation }
+			)
+			tween:Play()
+			tween.Completed:Wait()
+		end
+
+		showToast("Daily Wheel: +" .. formatNumber(amount) .. " Starshards!", COLORS.gold)
+		requestState()
+		if currentMenu == "DailyReward" then
+			showDailyReward()
+		end
 	end)
 end
 
@@ -1885,5 +2836,27 @@ else
 	warn("[MythlingRealms] Initial state could not be loaded.")
 	showToast("Couldn't load your data. Please rejoin.", COLORS.red)
 end
+
+-- Refresh rotating global event metadata without rebuilding whichever menu
+-- the player is currently using.
+task.spawn(function()
+	while gui.Parent and player.Parent do
+		task.wait(60)
+		if gui.Parent and player.Parent then
+			local wasDailyAvailable = currentState.dailyRewardAvailable
+			local wasWheelAvailable = currentState.dailyWheelAvailable
+			if requestState() then
+				updateEventBanner()
+				if currentMenu == "DailyReward"
+					and (
+						wasDailyAvailable ~= currentState.dailyRewardAvailable
+						or wasWheelAvailable ~= currentState.dailyWheelAvailable
+					) then
+					showDailyReward()
+				end
+			end
+		end
+	end
+end)
 
 print("[MythlingRealms] Compact client UI initialized.")
