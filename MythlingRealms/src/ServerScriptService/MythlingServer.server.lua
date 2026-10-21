@@ -1605,34 +1605,38 @@ end
 addPortalPrompt(portal, false)
 addPortalPrompt(emberPortal, true)
 
--- Decorative trees
+-- Decorative trees around the perimeter. Keep the center of the southern
+-- approach clear so the player can reach and interact with the Starfall gate.
 for i = 1, 12 do
 	local angle = math.pi * 2 * (i / 12)
 	local x = math.cos(angle) * 62
 	local z = math.sin(angle) * 62
 
-	makePart(
-		"FantasyTreeTrunk",
-		Vector3.new(3, 9, 3),
-		Vector3.new(x, 2, z),
-		Color3.fromRGB(125, 83, 59),
-		Enum.Material.Wood
-	)
+	if not (z < -48 and math.abs(x) < 18) then
+		local trunk = makePart(
+			"FantasyTreeTrunk_" .. i,
+			Vector3.new(3, 9, 3),
+			Vector3.new(x, 2, z),
+			Color3.fromRGB(125, 83, 59),
+			Enum.Material.Wood
+		)
+		trunk.CanCollide = true
 
-	local crown = makePart(
-		"FantasyTreeCrown",
-		Vector3.new(10, 10, 10),
-		Vector3.new(x, 8, z),
-		Color3.fromRGB(
-			100 + (i % 3) * 30,
-			180,
-			180 + (i % 2) * 40
-		),
-		Enum.Material.SmoothPlastic
-	)
+		local crown = makePart(
+			"FantasyTreeCrown_" .. i,
+			Vector3.new(10, 10, 10),
+			Vector3.new(x, 8, z),
+			Color3.fromRGB(
+				100 + (i % 3) * 30,
+				180,
+				180 + (i % 2) * 40
+			),
+			Enum.Material.SmoothPlastic
+		)
 
-	crown.Shape = Enum.PartType.Ball
-	crown.CanCollide = false
+		crown.Shape = Enum.PartType.Ball
+		crown.CanCollide = false
+	end
 end
 
 --==================================================
