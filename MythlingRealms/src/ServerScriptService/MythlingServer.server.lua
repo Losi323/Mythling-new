@@ -1211,7 +1211,7 @@ local function makeCrystal(index, position, worldName)
 		notify(player, "+" .. reward .. " Starshards!")
 		scheduleSave(player, 15)
 
-		task.delay(CRYSTAL_RESPAWN_SECONDS, function() {
+		task.delay(CRYSTAL_RESPAWN_SECONDS, function()
 			if crystal.Parent then
 				crystal.Transparency = 0
 				prompt.Enabled = true
