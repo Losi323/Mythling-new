@@ -25,6 +25,20 @@ local GAMEPASS_IDS = {
 	VIPCompanion = 0,
 }
 
+do
+	local seenIds = {}
+	for passKey, passId in pairs(GAMEPASS_IDS) do
+		assert(
+			type(passId) == "number" and passId >= 0 and passId == math.floor(passId),
+			"Invalid Game Pass ID for " .. tostring(passKey)
+		)
+		if passId > 0 then
+			assert(not seenIds[passId], "Game Pass IDs must be unique")
+			seenIds[passId] = true
+		end
+	end
+end
+
 local store = DataStoreService:GetDataStore(DATASTORE_NAME)
 
 --==================================================
@@ -245,6 +259,19 @@ local WHEEL_REWARDS = {
 	{ amount = 1000, weight = 10 },
 	{ amount = 2500, weight = 2 },
 }
+
+do
+	local totalWeight = 0
+	for _, entry in ipairs(WHEEL_REWARDS) do
+		assert(type(entry.amount) == "number" and entry.amount > 0,
+			"Wheel rewards must be positive numbers")
+		assert(type(entry.weight) == "number" and entry.weight >= 0,
+			"Wheel weights must be non-negative numbers")
+		totalWeight += entry.weight
+	end
+	assert(math.abs(totalWeight - 100) < 0.0001,
+		"Daily wheel weights must total 100; got " .. tostring(totalWeight))
+end
 
 -- Events rotate on the hour, using server UTC time so all players share the
 -- same event schedule regardless of their local timezone.
