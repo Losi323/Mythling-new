@@ -1122,7 +1122,14 @@ PartyAction.OnServerEvent:Connect(function(player, action, targetUserId)
 
 		party.members[player.UserId] = true
 		partyByUserId[player.UserId] = party
-		invites[targetUserId] = nil
+
+		-- Accepting one invitation invalidates all of this player's other
+		-- pending invitations so the UI cannot offer stale party joins.
+		partyInvitesByTarget[player.UserId] = nil
+		for _, pendingInvites in pairs(partyInvitesByTarget) do
+			pendingInvites[player.UserId] = nil
+		end
+
 		syncPartyMembers(party)
 		syncPartyClient(player)
 		notify(player, "You joined " .. leader.Name .. "'s party.")
