@@ -1001,6 +1001,9 @@ local function makeCrystal(index, position, worldName)
 		syncEquippedPetData(data)
 
 		local baseReward = worldName == "Emberfall" and 25 or 10
+		if worldName == "Emberfall" then
+			data.emberfallCollected = (data.emberfallCollected or 0) + 1
+		end
 
 		local reward = baseReward
 			+ math.min(data.petLevel * 2, 30)
@@ -1095,6 +1098,197 @@ local emberCrystalPositions = {
 for i, position in ipairs(emberCrystalPositions) do
 	makeCrystal(100 + i, position, "Emberfall")
 end
+
+--==================================================
+-- CREATURES AND SERVER-AUTHORITATIVE COMBAT
+--==================================================
+
+local enemyFolder = Instance.new("Folder")
+enemyFolder.Name = "WorldCreatures"
+enemyFolder.Parent = map
+
+local enemyStates = {}
+
+local function createEnemy(name, worldName, position, maxHealth, reward, color)
+	local orb = Instance.new("Part")
+	orb.Name = name
+	orb.Shape = Enum.PartType.Ball
+	orb.Size = Vector3.new(4.5, 4.5, 4.5)
+	orb.Position = position
+	orb.Anchored = true
+	orb.CanCollide = false
+	orb.Material = Enum.Material.Neon
+	orb.Color = color
+	orb.Parent = enemyFolder
+
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = 12
+	light.Brightness = 1.3
+	light.Parent = orb
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "EnemyStatus"
+	billboard.Adornee = orb
+	billboard.AlwaysOnTop = true
+	billboard.Size = UDim2.fromOffset(165, 48)
+	billboard.StudsOffset = Vector3.new(0, 3.6, 0)
+	billboard.Parent = orb
+
+	local label = Instance.new("TextLabel")
+	label.Name = "StatusText"
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundColor3 = Color3.fromRGB(19, 24, 38)
+	label.BackgroundTransparency = 0.2
+	label.BorderSizePixel = 0
+	label.Font = Enum.Font.GothamBold
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextStrokeTransparency = 0.6
+	label.TextScaled = true
+	label.Text = name .. "\nHP " .. maxHealth .. " / " .. maxHealth
+	label.Parent = billboard
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = label
+
+	enemyStates[orb] = {
+		name = name,
+		worldName = worldName,
+		spawnPosition = position,
+		maxHealth = maxHealth,
+		health = maxHealth,
+		reward = reward,
+		color = color,
+		label = label,
+	}
+
+	return orb
+end
+
+local enemySpawns = {
+	{ "Grove Wisp", "StarfallHaven", Vector3.new(32, 4, 4), 80, 35, Color3.fromRGB(108, 255, 186) },
+	{ "Mossling", "StarfallHaven", Vector3.new(-32, 4, 4), 90, 40, Color3.fromRGB(99, 209, 137) },
+	{ "Crystal Sprite", "StarfallHaven", Vector3.new(22, 4, 38), 75, 35, Color3.fromRGB(120, 210, 255) },
+	{ "Dusk Wisp", "StarfallHaven", Vector3.new(-22, 4, -38), 100, 45, Color3.fromRGB(181, 125, 255) },
+	{ "Cinder Hound", "Emberfall", Vector3.new(260, 4, 10), 190, 90, Color3.fromRGB(255, 115, 65) },
+	{ "Ash Guardian", "Emberfall", Vector3.new(300, 4, 10), 240, 110, Color3.fromRGB(255, 174, 82) },
+	{ "Magma Wisp", "Emberfall", Vector3.new(280, 4, 35), 175, 85, Color3.fromRGB(255, 87, 62) },
+}
+
+for _, info in ipairs(enemySpawns) do
+	createEnemy(info[1], info[2], info[3], info[4], info[5], info[6])
+end
+
+local function grantCombatXP(data, amount)
+	if not data.pet then
+		return false
+	end
+
+	data.petLevels = data.petLevels or {}
+	data.petXP = data.petXP or {}
+	local petName = data.pet
+	local level = math.clamp(
+		math.floor(tonumber(data.petLevels[petName]) or data.petLevel or 1),
+		1,
+		MAX_PET_LEVEL
+	)
+
+	if level >= MAX_PET_LEVEL then
+		data.petXP[petName] = 0
+		return false
+	end
+
+	data.petXP[petName] = math.max(0, tonumber(data.petXP[petName]) or 0) + amount
+	local leveledUp = false
+	while level < MAX_PET_LEVEL and data.petXP[petName] >= level * 100 do
+		data.petXP[petName] -= level * 100
+		level += 1
+		leveledUp = true
+	end
+
+	data.petLevels[petName] = level
+	syncEquippedPetData(data)
+	return leveledUp
+end
+
+AttackEnemy.OnServerEvent:Connect(function(player)
+	local data = playerData[player]
+	if not data then return end
+	if not actionAllowed(player, "attack", 0.55) then return end
+
+	if not data.pet then
+		notify(player, "Choose and equip a Mythling before fighting.")
+		return
+	end
+
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not root or not humanoid or humanoid.Health <= 0 then return end
+
+	local target = nil
+	local targetState = nil
+	local closestDistance = 13
+
+	for orb, state in pairs(enemyStates) do
+		if orb.Parent and state.health > 0 then
+			local distance = (root.Position - orb.Position).Magnitude
+			if distance <= closestDistance then
+				if state.worldName ~= "Emberfall" or data.worldsUnlocked >= 2 then
+					target = orb
+					targetState = state
+					closestDistance = distance
+				end
+			end
+		end
+	end
+
+	if not target or not targetState then
+		notify(player, "Move closer to a creature to attack.")
+		return
+	end
+
+	local damage = 8 + data.petLevel * 2 + (data.petEvolved and 10 or 0)
+	targetState.health = math.max(0, targetState.health - damage)
+
+	if targetState.label and targetState.label.Parent then
+		targetState.label.Text = targetState.name
+			.. "\nHP " .. targetState.health .. " / " .. targetState.maxHealth
+	end
+
+	if targetState.health > 0 then
+		return
+	end
+
+	local enemyName = targetState.name
+	local reward = targetState.reward
+	local spawnPosition = targetState.spawnPosition
+	local worldName = targetState.worldName
+	local maxHealth = targetState.maxHealth
+	local color = targetState.color
+
+	enemyStates[target] = nil
+	target:Destroy()
+
+	data.enemiesDefeated = (data.enemiesDefeated or 0) + 1
+	data.starshards += reward
+	local leveledUp = grantCombatXP(data, 40)
+	pushState(player)
+
+	local message = "Defeated " .. enemyName .. "! +" .. reward .. " Starshards."
+	if leveledUp then
+		message ..= " Your Mythling leveled up!"
+	end
+	notify(player, message)
+	task.spawn(savePlayer, player)
+
+	task.delay(12, function()
+		if enemyFolder.Parent then
+			createEnemy(enemyName, worldName, spawnPosition, maxHealth, reward, color)
+		end
+	end)
+end)
 
 --==================================================
 -- PET VISUALS
@@ -1441,6 +1635,10 @@ ChooseStarter.OnServerEvent:Connect(function(player, petName)
 	local data = playerData[player]
 	if not data then return end
 
+	if not actionAllowed(player, "chooseStarter", 1) then
+		return
+	end
+
 	if data.pet then
 		notify(player, "You already chose your starter Mythling.")
 		return
@@ -1562,6 +1760,7 @@ OpenEgg.OnServerEvent:Connect(function(player)
 	end
 
 	data.starshards -= EGG_COST
+	data.totalEggsOpened = (data.totalEggsOpened or 0) + 1
 	addOwnedPet(data, petName)
 
 	-- Equip the new pet only if the player has no pet equipped.
@@ -1673,6 +1872,40 @@ ClaimQuest.OnServerEvent:Connect(function(player, requestedQuestTitle)
 		"Quest complete! +" .. quest.reward .. " Starshards."
 	)
 
+	task.spawn(savePlayer, player)
+end)
+
+--==================================================
+-- DAILY REWARD
+--==================================================
+
+ClaimDailyReward.OnServerEvent:Connect(function(player)
+	local data = playerData[player]
+	if not data then return end
+
+	if not actionAllowed(player, "dailyReward", 1.5) then
+		return
+	end
+
+	local todayDay = math.floor(os.time() / 86400)
+	if (data.lastDailyClaimDay or 0) >= todayDay then
+		notify(player, "Your daily reward has already been claimed. Come back tomorrow!")
+		pushState(player)
+		return
+	end
+
+	if data.lastDailyClaimDay == todayDay - 1 then
+		data.dailyStreak = math.min((data.dailyStreak or 0) + 1, 8)
+	else
+		data.dailyStreak = 1
+	end
+
+	local reward = 100 + (data.dailyStreak - 1) * 50
+	data.starshards += reward
+	data.lastDailyClaimDay = todayDay
+
+	pushState(player)
+	notify(player, "Daily reward claimed! +" .. reward .. " Starshards. Streak: " .. data.dailyStreak)
 	task.spawn(savePlayer, player)
 end)
 
