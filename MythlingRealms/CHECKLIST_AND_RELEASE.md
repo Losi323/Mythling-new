@@ -19,6 +19,7 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 ## Fase 3 — Mascotes e coleção
 - [x] Catálogo de mascotes, raridades, duplicatas, equipamento, nível e evolução.
 - [x] Verificar propriedade antes de permitir equipar mascotes.
+- [x] Mascote VIP Aurora Stag existe como entrada exclusiva à posse do passe VIP; permanece fora do ovo básico.
 - [ ] Testar todas as combinações de mascote equipado, duplicata, evolução e reentrada.
 
 ## Fase 4 — Ovos e probabilidades
@@ -32,6 +33,7 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 ## Fase 5 — Missões e campanha
 - [x] Missões iniciais: coleta, nível, exploração e evolução.
 - [x] Acrescentar objetivos de Emberfall, combate, ovos e nível 10.
+- [x] Persistir contadores de Emberfall, criaturas derrotadas e ovos abertos.
 - [x] Validar no servidor a missão ativa antes de liberar recompensa.
 - [x] Registrar os contadores novos no salvamento.
 - [ ] Percorrer a campanha inteira com uma conta limpa e conferir o equilíbrio das recompensas.
@@ -56,6 +58,7 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 - [x] Roleta diária de Starshards com pesos configurados no servidor e animação visual no cliente.
 - [x] Impedir múltiplos giros diários por usuário, com base em dia UTC.
 - [x] Recompensa diária com sequência de dias e limite de bônus.
+- [x] Roleta diária com recompensas definidas exclusivamente pelo servidor.
 - [ ] Verificar o comportamento entre servidores e na virada de hora/dia.
 
 ## Fase 9 — Multiplayer e cooperação
@@ -65,9 +68,12 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 - [ ] Sistema de grupos, trocas e presentes não implementado nesta entrega; definir regras anti-fraude antes de adicionar.
 
 ## Fase 10 — Monetização transparente
-- [ ] Ainda não habilitada. Não há IDs reais de Game Passes ou Developer Products no repositório.
-- [ ] Criar os produtos no Creator Dashboard, informar os IDs e implementar/testar compras e recibos antes de publicar.
-- [ ] Exibir preço e conteúdo claramente, sem pressionar jogadores e sem prometer itens cujos IDs não estejam configurados.
+- [x] Loja opcional com suporte a Game Pass de 2x Starshards e Game Pass VIP Aurora Stag.
+- [x] A compra usa a janela oficial do Roblox; o servidor valida a posse do passe e concede os benefícios.
+- [x] Passes com ID zero ficam desativados; nenhum ID ou preço fictício foi inserido.
+- [ ] Criar os passes no Creator Dashboard e preencher os IDs reais em GAMEPASS_IDS.
+- [ ] Criar Developer Products/recibos idempotentes se forem desejados consumíveis de moeda; isso não está implementado.
+- [ ] Testar compra, cancelamento, posse prévia e reentrada com conta de teste.
 
 ## Fase 11 — Economia e desempenho
 - [x] Recompensas, níveis e custo de upgrade permanecem calculados no servidor.
@@ -91,6 +97,6 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 - [ ] Adicionar mundos, criaturas e eventos novos a partir dos dados de uso, sem prometer funcionalidades ainda não publicadas.
 
 ## Notas técnicas
-- Os scripts são revisados estaticamente e **não foram compilados nem executados no Roblox Studio neste ambiente**.
+- Os scripts foram revisados estaticamente, incluindo uma verificação de equilíbrio de delimitadores/blocos, mas **não foram compilados nem executados no Roblox Studio neste ambiente**.
 - Os sistemas de eventos, roleta, recompensas e combate usam recompensas definidas no servidor; a interface é apenas visual.
 - A versão principal `main` é preservada até a revisão do PR consolidado.
