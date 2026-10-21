@@ -100,6 +100,49 @@ local approach = ensurePart(
 )
 approach.CanCollide = true
 
+local signPost = ensurePart(
+	"ForgottenRuinsSignPost",
+	Vector3.new(1.2, 7, 1.2),
+	Vector3.new(511, 3.5, 30),
+	Color3.fromRGB(108, 74, 48),
+	Enum.Material.Wood
+)
+signPost.CanCollide = true
+local signBoard = ensurePart(
+	"ForgottenRuinsSignBoard",
+	Vector3.new(20, 6, 1),
+	Vector3.new(511, 8, 30),
+	Color3.fromRGB(42, 52, 73),
+	Enum.Material.Slate
+)
+signBoard.CanCollide = false
+local signGui = signBoard:FindFirstChild("RuinsSignGui")
+if not signGui then
+	signGui = Instance.new("BillboardGui")
+	signGui.Name = "RuinsSignGui"
+	signGui.Size = UDim2.fromOffset(280, 86)
+	signGui.StudsOffset = Vector3.new(0, 0, 0)
+	signGui.AlwaysOnTop = true
+	signGui.Parent = signBoard
+
+	local signText = Instance.new("TextLabel")
+	signText.Name = "Text"
+	signText.Size = UDim2.fromScale(1, 1)
+	signText.BackgroundColor3 = Color3.fromRGB(28, 35, 52)
+	signText.BackgroundTransparency = 0.08
+	signText.BorderSizePixel = 0
+	signText.Font = Enum.Font.GothamBold
+	signText.Text = "FORGOTTEN RUINS\nActivate all 3 runes to open the vault"
+	signText.TextColor3 = Color3.fromRGB(255, 221, 133)
+	signText.TextScaled = true
+	signText.TextWrapped = true
+	signText.Parent = signGui
+
+	local signCorner = Instance.new("UICorner")
+	signCorner.CornerRadius = UDim.new(0, 10)
+	signCorner.Parent = signText
+end
+
 local door = ensurePart(
 	"VaultDoor",
 	Vector3.new(14, 14, 2),
