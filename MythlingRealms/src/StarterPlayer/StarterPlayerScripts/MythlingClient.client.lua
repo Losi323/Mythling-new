@@ -1953,6 +1953,26 @@ eventBannerLabel.Font = Enum.Font.GothamBold
 eventBannerLabel.TextXAlignment = Enum.TextXAlignment.Center
 eventBannerLabel.TextWrapped = true
 
+local function positionEventBanner()
+	local camera = workspace.CurrentCamera
+	if not camera then return end
+
+	if camera.ViewportSize.X < 600 then
+		eventBanner.Size = UDim2.new(0, 270, 0, 38)
+		eventBanner.Position = UDim2.new(0.5, -135, 0, 58)
+		eventBannerLabel.TextSize = 10
+	else
+		eventBanner.Size = UDim2.new(0, 390, 0, 44)
+		eventBanner.Position = UDim2.new(0.5, -195, 0, 12)
+		eventBannerLabel.TextSize = 11
+	end
+end
+
+positionEventBanner()
+if workspace.CurrentCamera then
+	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(positionEventBanner)
+end
+
 local function updateEventBanner()
 	local eventInfo = currentState.activeEvent
 	if type(eventInfo) ~= "table" then
