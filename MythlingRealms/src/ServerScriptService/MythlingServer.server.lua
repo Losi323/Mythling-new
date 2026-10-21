@@ -1011,6 +1011,9 @@ local function addPortalPrompt(part, isEmberfall)
 			and character:FindFirstChild("HumanoidRootPart")
 
 		if not root then return end
+		if (root.Position - part.Position).Magnitude > 18 then
+			return
+		end
 
 		if isEmberfall then
 			root.CFrame = CFrame.new(0, 5, -48)
