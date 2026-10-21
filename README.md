@@ -14,7 +14,8 @@ Mythling Realms is a Roblox collection-and-progression game project built with L
 - Daily login reward streaks, a daily Starshard wheel, and rotating hourly global events.
 - Server-authoritative four-player parties with timed invitations, accept/decline, leave/disband handling, and cleanup on disconnect.
 - Optional Game Pass support for 2x Starshards and the VIP Aurora Stag companion, plus three Developer Product Starshard packs with idempotent receipt handling. All purchase IDs are intentionally zero until real products are created.
-- Data normalization, transient save retries, and protections for disconnects during player data loading.
+- Data normalization, transient save retries, disconnect protections, urgent-save scheduling, and persistent receipt tracking.
+- Improved starter selection cards and daily wheel markers aligned to the server-selected reward.
 
 ## Project layout
 
