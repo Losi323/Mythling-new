@@ -103,7 +103,7 @@ approach.CanCollide = true
 local signPost = ensurePart(
 	"ForgottenRuinsSignPost",
 	Vector3.new(1.2, 7, 1.2),
-	Vector3.new(511, 3.5, 30),
+	Vector3.new(511, 2.5, 30),
 	Color3.fromRGB(108, 74, 48),
 	Enum.Material.Wood
 )
@@ -111,7 +111,7 @@ signPost.CanCollide = true
 local signBoard = ensurePart(
 	"ForgottenRuinsSignBoard",
 	Vector3.new(20, 6, 1),
-	Vector3.new(511, 8, 30),
+	Vector3.new(511, 7, 30),
 	Color3.fromRGB(42, 52, 73),
 	Enum.Material.Slate
 )
