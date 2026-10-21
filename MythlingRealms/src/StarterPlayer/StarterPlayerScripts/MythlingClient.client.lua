@@ -2386,8 +2386,17 @@ task.spawn(function()
 	while gui.Parent and player.Parent do
 		task.wait(60)
 		if gui.Parent and player.Parent then
+			local wasDailyAvailable = currentState.dailyRewardAvailable
+			local wasWheelAvailable = currentState.dailyWheelAvailable
 			if requestState() then
 				updateEventBanner()
+				if currentMenu == "DailyReward"
+					and (
+						wasDailyAvailable ~= currentState.dailyRewardAvailable
+						or wasWheelAvailable ~= currentState.dailyWheelAvailable
+					) then
+					showDailyReward()
+				end
 			end
 		end
 	end
