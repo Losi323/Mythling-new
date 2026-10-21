@@ -1380,6 +1380,86 @@ for _, info in ipairs(enemySpawns) do
 	createEnemy(info[1], info[2], info[3], info[4], info[5], info[6])
 end
 
+-- Lightweight server-side creature behavior. Creatures approach nearby players
+-- in their own unlocked world and deal modest contact-range damage on a cooldown.
+local enemyThinkAccumulator = 0
+RunService.Heartbeat:Connect(function(frameDelta)
+	enemyThinkAccumulator += frameDelta
+	if enemyThinkAccumulator < 0.2 then
+		return
+	end
+	local dt = math.min(enemyThinkAccumulator, 0.5)
+	enemyThinkAccumulator = 0
+	local now = os.clock()
+
+	for orb, state in pairs(enemyStates) do
+		if not orb.Parent then
+			enemyStates[orb] = nil
+			continue
+		end
+
+		local bestPlayer = nil
+		local bestRoot = nil
+		local bestHumanoid = nil
+		local bestDistance = 36
+
+		for _, candidate in ipairs(Players:GetPlayers()) do
+			local candidateData = playerData[candidate]
+			local character = candidate.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			local inTargetWorld = false
+
+			if root and humanoid and humanoid.Health > 0 and candidateData
+				and not leavingPlayers[candidate] then
+				local p = root.Position
+				if state.worldName == "Emberfall" then
+					inTargetWorld = candidateData.worldsUnlocked >= 2
+						and p.X >= 190 and p.X <= 370
+						and p.Z >= -90 and p.Z <= 90
+				else
+					inTargetWorld = p.X >= -90 and p.X <= 90
+						and p.Z >= -90 and p.Z <= 90
+				end
+
+				if inTargetWorld then
+					local distance = (Vector3.new(p.X, orb.Position.Y, p.Z) - orb.Position).Magnitude
+					if distance < bestDistance then
+						bestDistance = distance
+						bestPlayer = candidate
+						bestRoot = root
+						bestHumanoid = humanoid
+					end
+				end
+			end
+		end
+
+		if bestRoot and bestHumanoid then
+			if bestDistance > 5 then
+				local delta = Vector3.new(
+					bestRoot.Position.X - orb.Position.X,
+					0,
+					bestRoot.Position.Z - orb.Position.Z
+				)
+				if delta.Magnitude > 0.05 then
+					local travel = math.min(delta.Magnitude - 4.5, 5.5 * dt)
+					if travel > 0 then
+						orb.Position += delta.Unit * travel
+					end
+				end
+			elseif now >= (state.nextAttackAt or 0) then
+				local damage = math.clamp(math.floor(state.maxHealth / 35), 3, 8)
+				bestHumanoid:TakeDamage(damage)
+				state.nextAttackAt = now + 2.2
+				if now >= (state.nextNotifyAt or 0) then
+					notify(bestPlayer, state.name .. " hit you for " .. damage .. " damage!")
+					state.nextNotifyAt = now + 5
+				end
+			end
+		end
+	end
+end)
+
 local function grantCombatXP(data, amount)
 	if not data.pet then
 		return false
