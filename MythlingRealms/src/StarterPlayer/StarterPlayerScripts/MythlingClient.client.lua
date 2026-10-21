@@ -860,7 +860,7 @@ local function showEggResult(petName, rarity)
 
 	local suspenseTitle = newLabel(
 		panel,
-		"A MYSTLING IS INSIDE...",
+		"A MYTHLING IS INSIDE...",
 		UDim2.new(1, -20, 0, 34),
 		UDim2.new(0, 10, 0, 12),
 		15,
@@ -1219,9 +1219,26 @@ local function showEggShop()
 		COLORS.gold
 	)
 
+	-- Read the same odds table sent by the server so the shop display
+	-- cannot silently drift away from the actual egg roll configuration.
+	local eggOdds = currentState.eggOdds or {
+		Common = 45,
+		Uncommon = 25,
+		Rare = 18,
+		Epic = 9,
+		Legendary = 3,
+	}
+	local oddsText = string.format(
+		"Common %s%% - Uncommon %s%%\nRare %s%% - Epic %s%% - Legendary %s%%",
+		tostring(eggOdds.Common or 0),
+		tostring(eggOdds.Uncommon or 0),
+		tostring(eggOdds.Rare or 0),
+		tostring(eggOdds.Epic or 0),
+		tostring(eggOdds.Legendary or 0)
+	)
 	local odds = newLabel(
 		eggCard,
-		"Common 45% - Uncommon 25%\nRare 18% - Epic 9% - Legendary 3%",
+		oddsText,
 		UDim2.new(1, -115, 0, 40),
 		UDim2.new(0, 100, 0, 67),
 		10,
@@ -1267,8 +1284,8 @@ local function showEggShop()
 				showToast("Could not open the egg.", COLORS.red)
 			elseif type(result) == "table" and result.success == false then
 				showToast(result.message or "You cannot open this egg.", COLORS.red)
-			else
-				showToast("Egg request sent!", COLORS.green)
+			-- Successful hatches are announced by Notify with the server's
+			-- authoritative pet and rarity. Avoid a duplicate generic success toast.
 			end
 
 			task.delay(4.5, function()
