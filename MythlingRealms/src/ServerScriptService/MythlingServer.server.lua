@@ -1982,6 +1982,43 @@ ClaimDailyReward.OnServerEvent:Connect(function(player)
 	task.spawn(savePlayer, player)
 end)
 
+-- The daily wheel awards only Starshards. Its sector is chosen here, never
+-- by the client, and only one spin is allowed per UTC day.
+SpinWheel.OnServerEvent:Connect(function(player)
+	local data = playerData[player]
+	if not data then return end
+
+	if not actionAllowed(player, "spinWheel", 1.5) then
+		return
+	end
+
+	local todayDay = math.floor(os.time() / 86400)
+	if (data.lastWheelSpinDay or 0) >= todayDay then
+		notify(player, "You already spun the daily wheel. Come back tomorrow!")
+		pushState(player)
+		return
+	end
+
+	local roll = math.random(1, 100)
+	local accumulated = 0
+	local rewardIndex = #WHEEL_REWARDS
+	for index, entry in ipairs(WHEEL_REWARDS) do
+		accumulated += entry.weight
+		if roll <= accumulated then
+			rewardIndex = index
+			break
+		end
+	end
+
+	local reward = WHEEL_REWARDS[rewardIndex].amount
+	data.lastWheelSpinDay = todayDay
+	data.starshards += reward
+
+	pushState(player)
+	WheelResult:FireClient(player, rewardIndex, reward)
+	task.spawn(savePlayer, player)
+end)
+
 --==================================================
 -- EVOLUTION
 --==================================================
