@@ -2013,7 +2013,7 @@ local function showQuests()
 
 	-- The server currently exposes one active quest as flat fields,
 	-- not as a quests dictionary. Read that contract directly.
-	local questTitle = currentState.questTitle or "Forest Guardian"
+	local questTitle = currentState.questTitle or "Loading quest..."
 	local questDescription = currentState.questDescription or "No quest description available."
 	local questProgress = tonumber(currentState.questProgress) or 0
 	local questTarget = tonumber(currentState.questTarget) or 0
