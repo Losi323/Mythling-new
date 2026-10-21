@@ -2327,18 +2327,26 @@ local evolveHudButton = newButton(
 evolveHudButton.TextSize = 11
 evolveHudButton.Font = Enum.Font.GothamBold
 
+local initialViewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize
+local compactNavigation = initialViewport ~= nil
+	and (initialViewport.X < 600 or initialViewport.Y < 650)
+local navButtonHeight = compactNavigation and 40 or 48
+local navBarWidth = compactNavigation and 116 or 132
+local navGap = compactNavigation and 4 or 7
+local navBarHeight = compactNavigation and 338 or 410
+
 local buttonBar = newFrame(
 	hud,
 	"ButtonBar",
-	UDim2.new(0, 76, 0, 410),
-	UDim2.new(0, 12, 0.5, -205),
+	UDim2.new(0, navBarWidth, 0, navBarHeight),
+	UDim2.new(0, 12, 0.5, -navBarHeight / 2),
 	COLORS.background
 )
 buttonBar.BackgroundTransparency = 0.12
 stroke(buttonBar, COLORS.border, 1)
 
 local barLayout = Instance.new("UIListLayout")
-barLayout.Padding = UDim.new(0, 7)
+barLayout.Padding = UDim.new(0, navGap)
 barLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 barLayout.SortOrder = Enum.SortOrder.LayoutOrder
 barLayout.Parent = buttonBar
@@ -2355,7 +2363,7 @@ local function addHudButton(order, iconKind, label, callback, color)
 	local button = newButton(
 		buttonBar,
 		"",
-		UDim2.new(1, 0, 0, 48),
+		UDim2.new(1, 0, 0, navButtonHeight),
 		UDim2.new(),
 		callback,
 		color or COLORS.panelLight
@@ -2364,7 +2372,9 @@ local function addHudButton(order, iconKind, label, callback, color)
 	button.Text = ""
 	button.AutoButtonColor = true
 
-	local iconX, iconY, iconSize = 8, 7, 34
+	local iconSize = compactNavigation and 28 or 34
+	local iconX = 8
+	local iconY = math.floor((navButtonHeight - iconSize) / 2)
 	if iconKind == "Egg" then
 		makeEggBadge(button, iconSize, UDim2.fromOffset(iconX, iconY), COLORS.gold)
 	elseif iconKind == "Pet" then
@@ -2372,8 +2382,9 @@ local function addHudButton(order, iconKind, label, callback, color)
 	else
 		local icon = Instance.new("Frame")
 		icon.Name = iconKind .. "Icon"
-		icon.Size = UDim2.fromOffset(28, 28)
-		icon.Position = UDim2.fromOffset(11, 10)
+		local baseIconSize = compactNavigation and 24 or 28
+		icon.Size = UDim2.fromOffset(baseIconSize, baseIconSize)
+		icon.Position = UDim2.fromOffset(10, math.floor((navButtonHeight - baseIconSize) / 2))
 		icon.BackgroundColor3 = iconKind == "Quest" and COLORS.gold or COLORS.accentLight
 		icon.BorderSizePixel = 0
 		icon.ZIndex = 3
@@ -2406,8 +2417,8 @@ local function addHudButton(order, iconKind, label, callback, color)
 	textLabel.Name = "NavigationLabel"
 	textLabel.BackgroundTransparency = 1
 	textLabel.BorderSizePixel = 0
-	textLabel.Position = UDim2.fromOffset(47, 0)
-	textLabel.Size = UDim2.new(1, -53, 1, 0)
+	textLabel.Position = UDim2.fromOffset(compactNavigation and 41 or 47, 0)
+	textLabel.Size = UDim2.new(1, compactNavigation and -47 or -53, 1, 0)
 	textLabel.Font = Enum.Font.GothamBold
 	textLabel.Text = label
 	textLabel.TextColor3 = COLORS.text
