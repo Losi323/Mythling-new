@@ -32,14 +32,16 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 
 ## Fase 5 — Missões e campanha
 - [x] Missões iniciais: coleta, nível, exploração e evolução.
-- [x] Acrescentar objetivos de Emberfall, combate, ovos e nível 10.
-- [x] Persistir contadores de Emberfall, criaturas derrotadas e ovos abertos.
+- [x] Acrescentar objetivos de Emberfall, Forgotten Vault, combate, ovos e nível 10.
+- [x] Persistir contadores de Emberfall, criatura derrotada, ovos abertos e recompensa única do vault.
+- [x] Integrar o puzzle das três runas em Forgotten Ruins a uma recompensa autoritativa e persistente.
 - [x] Validar no servidor a missão ativa antes de liberar recompensa.
 - [x] Registrar os contadores novos no salvamento.
 - [ ] Percorrer a campanha inteira com uma conta limpa e conferir o equilíbrio das recompensas.
 
 ## Fase 6 — Combate
 - [x] Criaturas geradas no servidor em Starfall Haven e Emberfall.
+- [x] Compartilhar a recompensa base de uma criatura entre contribuidores próximos; bônus por evento/passe é aplicado individualmente.
 - [x] Ataques validados no servidor por jogador, alcance, personagem vivo e mundo desbloqueado.
 - [x] Vida visível das criaturas, recompensas e XP do mascote equipado.
 - [x] Reaparecimento de criaturas.
@@ -48,6 +50,7 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 ## Fase 7 — Mundos e progressão
 - [x] Starfall Haven como área inicial.
 - [x] Emberfall com portal de ida e retorno.
+- [x] Terceira área, Forgotten Ruins, com ponte e puzzle de três runas.
 - [x] Verificar desbloqueio de Emberfall no servidor tanto no portal quanto na coleta/combate.
 - [x] Recompensas de cristais específicas por mundo.
 - [ ] Fazer walkthrough de todas as rotas e verificar visualmente as colisões e os pontos de surgimento.
@@ -64,6 +67,7 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 ## Fase 9 — Multiplayer e cooperação
 - [x] Cristais e criaturas compartilhados no mundo; recompensas validadas por servidor.
 - [x] Tabelas de classificação do jogador existentes para moeda/nível.
+- [x] Recompensas de combate compartilhadas proporcionalmente entre contribuidores próximos; leaderstats incluem cristais e criaturas derrotadas.
 - [ ] Testar dois ou mais jogadores disputando a mesma criatura/cristal.
 - [ ] Sistema de grupos, trocas e presentes não implementado nesta entrega; definir regras anti-fraude antes de adicionar.
 
