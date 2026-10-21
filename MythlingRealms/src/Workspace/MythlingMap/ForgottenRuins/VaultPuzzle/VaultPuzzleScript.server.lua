@@ -239,6 +239,19 @@ chestPrompt.Enabled = false
 
 local vaultRewardRequest = ServerScriptService:WaitForChild("MythlingVaultReward")
 assert(vaultRewardRequest:IsA("BindableFunction"), "MythlingVaultReward must be a BindableFunction")
+local vaultAccessRequest = ServerScriptService:WaitForChild("MythlingVaultCanAccess")
+assert(vaultAccessRequest:IsA("BindableFunction"), "MythlingVaultCanAccess must be a BindableFunction")
+
+local function checkVaultAccess(player)
+	local callOk, allowed, reason = pcall(function()
+		return vaultAccessRequest:Invoke(player)
+	end)
+	if not callOk then
+		warn("[MythlingRealms] Vault access check failed: " .. tostring(allowed))
+		return false, "The vault could not check your access. Try again."
+	end
+	return allowed == true, reason
+end
 
 local function setDoorOpen()
 	if doorOpened then return end
@@ -262,6 +275,12 @@ for _, rune in ipairs(runes) do
 
 	prompt.Triggered:Connect(function(player)
 		if not isCloseEnough(player, rune, 14) then return end
+		local allowed, reason = checkVaultAccess(player)
+		if not allowed then
+			notifyPlayer(player, tostring(reason or "Unlock Emberfall before entering Forgotten Ruins."))
+			return
+		end
+
 		local userId = player.UserId
 		if solvedByUserId[userId] then
 			notifyPlayer(player, "You have already solved the rune sequence.")
@@ -301,6 +320,11 @@ end
 
 chestPrompt.Triggered:Connect(function(player)
 	if not isCloseEnough(player, chestBase, 14) then return end
+	local allowed, reason = checkVaultAccess(player)
+	if not allowed then
+		notifyPlayer(player, tostring(reason or "Unlock Emberfall before entering Forgotten Ruins."))
+		return
+	end
 	if not solvedByUserId[player.UserId] then
 		notifyPlayer(player, "Activate all three runes yourself before opening the vault.")
 		return
