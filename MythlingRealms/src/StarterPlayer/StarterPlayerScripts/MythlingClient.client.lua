@@ -660,6 +660,7 @@ local function showPetDetails(petName, amount)
 	details.TextYAlignment = Enum.TextYAlignment.Top
 
 	local equipped = getEquippedPet() == petName
+	local evolved = getPetEvolved(petName)
 	newButton(
 		card,
 		equipped and "EQUIPPED" or "Equip Pet",
@@ -680,12 +681,21 @@ local function showPetDetails(petName, amount)
 		equipped and COLORS.green or COLORS.accent
 	)
 
-	newButton(
+	local evolutionButton = newButton(
 		card,
-		"Evolution",
+		evolved and "ALREADY EVOLVED" or (equipped and "EVOLUTION" or "EQUIP TO EVOLVE"),
 		UDim2.new(0.44, 0, 0, 34),
 		UDim2.new(0.52, 0, 1, -42),
 		function()
+			if not equipped then
+				showToast("Equip this Mythling before evolving it.", COLORS.gold)
+				return
+			end
+			if evolved then
+				showToast("This Mythling has already evolved.", COLORS.gold)
+				return
+			end
+
 			local success = invokeRemote(EvolvePet)
 			if success then
 				showToast("Evolution request sent")
@@ -697,8 +707,10 @@ local function showPetDetails(petName, amount)
 				end)
 			end
 		end,
-		COLORS.panelLight
+		evolved and COLORS.green or (equipped and COLORS.panelLight or COLORS.border)
 	)
+	evolutionButton.Active = equipped and not evolved
+	evolutionButton.AutoButtonColor = equipped and not evolved
 
 	local note = newLabel(
 		content,
