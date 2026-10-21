@@ -1190,8 +1190,10 @@ local function showEggResult(petName, rarity)
 			{ Size = UDim2.new(0, 330, 0, 245) }
 		):Play()
 
+		-- Each result owns its own timeout. A later hatch must not cancel
+		-- cleanup of this card, or an older result can remain on screen forever.
 		task.delay(12, function()
-			if result.Parent and thisHatch == hatchId then
+			if result.Parent then
 				result:Destroy()
 			end
 		end)
