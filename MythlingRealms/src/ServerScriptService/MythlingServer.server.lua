@@ -61,6 +61,8 @@ local OpenEgg = getOrCreate("RemoteEvent", "OpenEgg")
 local EquipPet = getOrCreate("RemoteEvent", "EquipPet")
 local ClaimDailyReward = getOrCreate("RemoteEvent", "ClaimDailyReward")
 local AttackEnemy = getOrCreate("RemoteEvent", "AttackEnemy")
+local SpinWheel = getOrCreate("RemoteEvent", "SpinWheel")
+local WheelResult = getOrCreate("RemoteEvent", "WheelResult")
 
 --==================================================
 -- MYTHLINGS
@@ -218,6 +220,40 @@ do
 	end
 end
 
+-- Daily wheel rewards are selected on the server. The order is also used by
+-- the client animation, but the client never determines the prize.
+local WHEEL_REWARDS = {
+	{ amount = 100, weight = 40 },
+	{ amount = 250, weight = 30 },
+	{ amount = 500, weight = 18 },
+	{ amount = 1000, weight = 10 },
+	{ amount = 2500, weight = 2 },
+}
+
+-- Events rotate on the hour, using server UTC time so all players share the
+-- same event schedule regardless of their local timezone.
+local function getActiveEvent()
+	local hourIndex = math.floor(os.time() / 3600)
+	local eventIndex = hourIndex % 2
+	local endsAt = (hourIndex + 1) * 3600
+
+	if eventIndex == 0 then
+		return {
+			id = "CRYSTAL_RUSH",
+			name = "Crystal Rush",
+			description = "Collecting crystals gives 50% more Starshards.",
+			endsAt = endsAt,
+		}
+	end
+
+	return {
+		id = "CREATURE_HUNT",
+		name = "Creature Hunt",
+		description = "Defeating creatures gives 50% more Starshards.",
+		endsAt = endsAt,
+	}
+end
+
 --==================================================
 -- QUESTS
 --==================================================
@@ -320,6 +356,7 @@ local function defaultData()
 		worldsUnlocked = 1,
 		questStage = 1,
 		lastDailyClaimDay = 0,
+		lastWheelSpinDay = 0,
 		dailyStreak = 0,
 		ownedPets = {},
 	}
@@ -459,6 +496,10 @@ local function cloneData(data)
 			0,
 			math.floor(tonumber(data.lastDailyClaimDay) or 0)
 		),
+		lastWheelSpinDay = math.max(
+			0,
+			math.floor(tonumber(data.lastWheelSpinDay) or 0)
+		),
 		dailyStreak = math.clamp(
 			math.floor(tonumber(data.dailyStreak) or 0),
 			0,
@@ -551,6 +592,7 @@ end
 local function stateForClient(data)
 	syncEquippedPetData(data)
 
+	local activeEvent = getActiveEvent()
 	local quest = QUESTS[data.questStage]
 	local questProgress = 0
 
@@ -612,7 +654,10 @@ local function stateForClient(data)
 		dailyRewardAvailable = (data.lastDailyClaimDay or 0) < todayDay,
 		dailyRewardStreak = nextDailyStreak,
 		dailyRewardAmount = nextDailyReward,
+		dailyWheelAvailable = (data.lastWheelSpinDay or 0) < todayDay,
+		wheelRewards = WHEEL_REWARDS,
 
+		activeEvent = activeEvent,
 		questStage = data.questStage,
 		questTitle = quest and quest.title or "Forest Guardian",
 		questDescription = quest and quest.description
@@ -1008,6 +1053,10 @@ local function makeCrystal(index, position, worldName)
 		local reward = baseReward
 			+ math.min(data.petLevel * 2, 30)
 			+ (data.petEvolved and 5 or 0)
+		local activeEvent = getActiveEvent()
+		if activeEvent.id == "CRYSTAL_RUSH" then
+			reward = math.floor(reward * 1.5)
+		end
 		data.starshards += reward
 		data.totalCollected += 1
 
@@ -1275,6 +1324,13 @@ AttackEnemy.OnServerEvent:Connect(function(player)
 	data.starshards += reward
 	local leveledUp = grantCombatXP(data, 40)
 	pushState(player)
+
+	local activeEvent = getActiveEvent()
+	if activeEvent.id == "CREATURE_HUNT" then
+		reward = math.floor(reward * 1.5)
+		-- Combat event bonus is applied before the actual award.
+		data.starshards += reward - targetState.reward
+	end
 
 	local message = "Defeated " .. enemyName .. "! +" .. reward .. " Starshards."
 	if leveledUp then
