@@ -2236,7 +2236,8 @@ local function loadPlayer(player)
 		task.wait(0.1)
 	end
 
-	if savingPlayers[player.UserId] then
+	if savingPlayers[player.UserId]
+		or (finalSaveLocks[player.UserId] and finalSaveLocks[player.UserId] ~= player) then
 		loadingPlayers[player] = nil
 		warn("[MythlingRealms] Timed out waiting for prior account save before loading " .. player.Name)
 		player:Kick("Your previous session is still saving. Please rejoin in a moment.")
@@ -2843,6 +2844,23 @@ local function cleanupRemovedPlayer(player)
 	leavingPlayers[player] = nil
 end
 
+local function retryPendingFinalSave(player, attempt)
+	local delaySeconds = math.min(math.max(attempt, 1) * 10, 60)
+	task.delay(delaySeconds, function()
+		if not playerData[player] then
+			return
+		end
+		if savePlayer(player) then
+			cleanupRemovedPlayer(player)
+			return
+		end
+
+		warn("[MythlingRealms] Final save retry " .. tostring(attempt)
+			.. " failed for " .. player.Name .. "; keeping the account locked to avoid stale reloads.")
+		retryPendingFinalSave(player, attempt + 1)
+	end)
+end
+
 Players.PlayerRemoving:Connect(function(player)
 	leavingPlayers[player] = true
 	removePartyMember(player)
@@ -2883,23 +2901,10 @@ Players.PlayerRemoving:Connect(function(player)
 		return
 	end
 
-	warn("[MythlingRealms] Final save is still pending for " .. player.Name .. "; retaining session data for retries.")
+	warn("[MythlingRealms] Final save is still pending for " .. player.Name .. "; retaining session data and retrying until saved.")
 	-- Do not throw away the last in-memory snapshot on a transient DataStore
-	-- outage. The account barrier remains in place while these retries run.
-	task.spawn(function()
-		for attempt = 1, 4 do
-			task.wait(attempt * 2)
-			if not playerData[player] then
-				return
-			end
-			if savePlayer(player) then
-				cleanupRemovedPlayer(player)
-				return
-			end
-		end
-
-		warn("[MythlingRealms] Could not persist final data after repeated retries for " .. player.Name .. ". The session snapshot is being retained until shutdown.")
-	end)
+	-- outage. Keep the account barrier in place until UpdateAsync succeeds.
+	retryPendingFinalSave(player, 1)
 end)
 
 for _, player in ipairs(Players:GetPlayers()) do
