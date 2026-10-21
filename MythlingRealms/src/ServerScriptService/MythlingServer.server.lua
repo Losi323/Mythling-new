@@ -1788,6 +1788,17 @@ local function refreshPassOwnership(player)
 		return
 	end
 
+	-- A purchase can complete while the initial ownership query is yielding.
+	-- Never let an older query overwrite a purchase confirmed in this session.
+	local sessionCache = gamePassCache[player]
+	if sessionCache then
+		for key, isOwned in pairs(sessionCache) do
+			if isOwned then
+				cache[key] = true
+			end
+		end
+	end
+
 	gamePassCache[player] = cache
 	local data = playerData[player]
 	if data then
