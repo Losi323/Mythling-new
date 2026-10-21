@@ -472,6 +472,14 @@ local PARTY_ACTIONS = {
 	LEAVE = true,
 }
 
+local function isValidUserId(value)
+	return type(value) == "number"
+		and value == value
+		and value > 0
+		and value <= 9000000000000000
+		and value % 1 == 0
+end
+
 -- Forward declaration: combat handlers appear before the save/load section
 -- but still need to schedule a persistence attempt after awarding co-op rewards.
 local savePlayer
@@ -1121,8 +1129,7 @@ PartyAction.OnServerEvent:Connect(function(player, action, targetUserId)
 	end
 
 	if action == "INVITE" then
-		if type(targetUserId) ~= "number" or targetUserId ~= math.floor(targetUserId)
-			or targetUserId <= 0 or targetUserId == player.UserId then
+		if not isValidUserId(targetUserId) or targetUserId == player.UserId then
 			notify(player, "Choose a valid player to invite.")
 			return
 		end
@@ -1183,7 +1190,7 @@ PartyAction.OnServerEvent:Connect(function(player, action, targetUserId)
 		end)
 
 	elseif action == "ACCEPT" then
-		if type(targetUserId) ~= "number" then
+		if not isValidUserId(targetUserId) then
 			notify(player, "Invalid party invitation.")
 			return
 		end
@@ -1231,7 +1238,7 @@ PartyAction.OnServerEvent:Connect(function(player, action, targetUserId)
 		notify(leader, player.Name .. " joined your party.")
 
 	elseif action == "DECLINE" then
-		if type(targetUserId) ~= "number" then return end
+		if not isValidUserId(targetUserId) then return end
 		local invites = partyInvitesByTarget[player.UserId]
 		local invitation = invites and invites[targetUserId]
 		if invitation then
