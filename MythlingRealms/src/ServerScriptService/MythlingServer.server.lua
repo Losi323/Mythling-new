@@ -55,6 +55,16 @@ if not vaultRewardRequest then
 	vaultRewardRequest.Parent = ServerScriptService
 end
 
+local vaultAccessRequest = ServerScriptService:FindFirstChild("MythlingVaultCanAccess")
+if vaultAccessRequest and not vaultAccessRequest:IsA("BindableFunction") then
+	vaultAccessRequest:Destroy()
+	vaultAccessRequest = nil
+end
+if not vaultAccessRequest then
+	vaultAccessRequest = Instance.new("BindableFunction")
+	vaultAccessRequest.Name = "MythlingVaultCanAccess"
+	vaultAccessRequest.Parent = ServerScriptService
+end
 
 --==================================================
 -- REMOTES
@@ -2190,6 +2200,17 @@ savePlayer = function(player)
 	end
 
 	return success
+end
+
+vaultAccessRequest.OnInvoke = function(player)
+	local data = playerData[player]
+	if not data or leavingPlayers[player] or player.Parent ~= Players then
+		return false, "Your player data is not ready."
+	end
+	if data.worldsUnlocked < 2 then
+		return false, "Unlock Emberfall before entering Forgotten Ruins."
+	end
+	return true
 end
 
 vaultRewardRequest.OnInvoke = function(player)
