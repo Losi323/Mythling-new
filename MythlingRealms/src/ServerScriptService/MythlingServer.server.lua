@@ -3097,8 +3097,6 @@ end)
 -- Only works in Roblox Studio
 --==================================================
 
-local RunService = game:GetService("RunService")
-
 local function setupDevCommands(player)
 	player.Chatted:Connect(function(message)
 		if not RunService:IsStudio() then
