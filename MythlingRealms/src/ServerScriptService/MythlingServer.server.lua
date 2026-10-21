@@ -1400,6 +1400,7 @@ AttackEnemy.OnServerEvent:Connect(function(player)
 	local enemyName = targetState.name
 	local baseReward = targetState.reward
 	local spawnPosition = targetState.spawnPosition
+	local enemyPosition = target.Position
 	local worldName = targetState.worldName
 	local maxHealth = targetState.maxHealth
 	local color = targetState.color
@@ -1418,7 +1419,7 @@ AttackEnemy.OnServerEvent:Connect(function(player)
 		local character = contributor.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		if contributed > 0 and contributorData and not leavingPlayers[contributor]
-			and root and (root.Position - target.Position).Magnitude <= 60 then
+			and root and (root.Position - enemyPosition).Magnitude <= 60 then
 			table.insert(participants, {
 				player = contributor,
 				data = contributorData,
