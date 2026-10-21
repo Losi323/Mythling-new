@@ -100,6 +100,8 @@ local ClaimDailyReward = getOrCreate("RemoteEvent", "ClaimDailyReward")
 local AttackEnemy = getOrCreate("RemoteEvent", "AttackEnemy")
 local SpinWheel = getOrCreate("RemoteEvent", "SpinWheel")
 local WheelResult = getOrCreate("RemoteEvent", "WheelResult")
+local PartyAction = getOrCreate("RemoteEvent", "PartyAction")
+local PartyUpdate = getOrCreate("RemoteEvent", "PartyUpdate")
 
 --==================================================
 -- MYTHLINGS
@@ -400,6 +402,11 @@ local lastRequest = {}
 local savingPlayers = {}
 local gamePassCache = {}
 local leavingPlayers = {}
+local partiesByLeader = {}
+local partyByUserId = {}
+local partyInvitesByTarget = {}
+local MAX_PARTY_SIZE = 4
+local PARTY_INVITE_SECONDS = 30
 
 -- Forward declaration: combat handlers appear before the save/load section
 -- but still need to schedule a persistence attempt after awarding co-op rewards.
@@ -885,6 +892,267 @@ local function actionAllowed(player, actionName, cooldown)
 	lastRequest[key] = now
 	return true
 end
+
+local function getPartyPayload(party, viewer)
+	if not party or not viewer then return nil end
+	local members = {}
+	for userId in pairs(party.members) do
+		local member = Players:GetPlayerByUserId(userId)
+		if member then
+			table.insert(members, {
+				userId = userId,
+				name = member.DisplayName ~= "" and member.DisplayName or member.Name,
+				username = member.Name,
+				isLeader = userId == party.leaderUserId,
+			})
+		end
+	end
+	table.sort(members, function(a, b)
+		if a.isLeader ~= b.isLeader then return a.isLeader end
+		return string.lower(a.name) < string.lower(b.name)
+	end)
+
+	local leader = Players:GetPlayerByUserId(party.leaderUserId)
+	return {
+		id = party.leaderUserId,
+		leaderUserId = party.leaderUserId,
+		leaderName = leader and (leader.DisplayName ~= "" and leader.DisplayName or leader.Name) or "Party Leader",
+		members = members,
+		memberCount = #members,
+		maxMembers = MAX_PARTY_SIZE,
+		isLeader = viewer.UserId == party.leaderUserId,
+	}
+end
+
+local function getPartyInvites(player)
+	local result = {}
+	local invites = partyInvitesByTarget[player.UserId]
+	if not invites then return result end
+
+	local now = os.clock()
+	for leaderUserId, invitation in pairs(invites) do
+		local leader = Players:GetPlayerByUserId(leaderUserId)
+		if invitation.expiresAt <= now or not leader then
+			invites[leaderUserId] = nil
+		else
+			table.insert(result, {
+				leaderUserId = leaderUserId,
+				leaderName = leader.DisplayName ~= "" and leader.DisplayName or leader.Name,
+				expiresIn = math.max(0, math.ceil(invitation.expiresAt - now)),
+			})
+		end
+	end
+
+	table.sort(result, function(a, b)
+		return string.lower(a.leaderName) < string.lower(b.leaderName)
+	end)
+	return result
+end
+
+local function syncPartyClient(player)
+	if not player or player.Parent ~= Players then return end
+	local party = partyByUserId[player.UserId]
+	local payload = party and getPartyPayload(party, player) or nil
+	PartyUpdate:FireClient(player, "SYNC", payload, getPartyInvites(player))
+end
+
+local function syncPartyMembers(party)
+	for userId in pairs(party.members) do
+		local member = Players:GetPlayerByUserId(userId)
+		if member then syncPartyClient(member) end
+	end
+end
+
+local function createParty(leader)
+	local party = partyByUserId[leader.UserId]
+	if party then return party end
+
+	party = {
+		leaderUserId = leader.UserId,
+		members = {[leader.UserId] = true},
+	}
+	partiesByLeader[leader.UserId] = party
+	partyByUserId[leader.UserId] = party
+	return party
+end
+
+local function removePartyMember(player)
+	local userId = player.UserId
+	local party = partyByUserId[userId]
+	if party then
+		if party.leaderUserId == userId then
+			partiesByLeader[userId] = nil
+			local formerMembers = {}
+			for memberUserId in pairs(party.members) do
+				partyByUserId[memberUserId] = nil
+				if memberUserId ~= userId then
+					local member = Players:GetPlayerByUserId(memberUserId)
+					if member then table.insert(formerMembers, member) end
+				end
+			end
+			party.members = {}
+			for _, member in ipairs(formerMembers) do
+				notify(member, "The party leader left. Your party has disbanded.")
+				syncPartyClient(member)
+			end
+		else
+			party.members[userId] = nil
+			partyByUserId[userId] = nil
+			syncPartyMembers(party)
+			local leader = Players:GetPlayerByUserId(party.leaderUserId)
+			if leader and leader ~= player then
+				notify(leader, player.Name .. " left your party.")
+			end
+		end
+	end
+
+	partyInvitesByTarget[userId] = nil
+	for targetUserId, invites in pairs(partyInvitesByTarget) do
+		if invites[userId] then
+			invites[userId] = nil
+			local target = Players:GetPlayerByUserId(targetUserId)
+			if target then syncPartyClient(target) end
+		end
+	end
+end
+
+PartyAction.OnServerEvent:Connect(function(player, action, targetUserId)
+	if type(action) ~= "string" or not actionAllowed(player, "party_" .. action, 0.75) then
+		return
+	end
+	if not playerData[player] then
+		notify(player, "Your player data is still loading.")
+		return
+	end
+
+	if action == "INVITE" then
+		if type(targetUserId) ~= "number" or targetUserId ~= math.floor(targetUserId)
+			or targetUserId <= 0 or targetUserId == player.UserId then
+			notify(player, "Choose a valid player to invite.")
+			return
+		end
+
+		local target = Players:GetPlayerByUserId(targetUserId)
+		if not target or not playerData[target] or leavingPlayers[target] then
+			notify(player, "That player is not ready to join a party.")
+			return
+		end
+		if partyByUserId[targetUserId] then
+			notify(player, "That player is already in a party.")
+			return
+		end
+
+		local party = createParty(player)
+		if party.leaderUserId ~= player.UserId then
+			notify(player, "Only the party leader can invite players.")
+			return
+		end
+		if party.members[targetUserId] then
+			notify(player, "That player is already in your party.")
+			return
+		end
+
+		local memberCount = 0
+		for _ in pairs(party.members) do memberCount += 1 end
+		if memberCount >= MAX_PARTY_SIZE then
+			notify(player, "Your party is full.")
+			return
+		end
+
+		partyInvitesByTarget[targetUserId] = partyInvitesByTarget[targetUserId] or {}
+		local pending = partyInvitesByTarget[targetUserId][player.UserId]
+		if pending and pending.expiresAt > os.clock() then
+			notify(player, "Your invitation is still pending.")
+			return
+		end
+
+		local invitation = {
+			partyId = party.leaderUserId,
+			expiresAt = os.clock() + PARTY_INVITE_SECONDS,
+		}
+		partyInvitesByTarget[targetUserId][player.UserId] = invitation
+		syncPartyMembers(party)
+		syncPartyClient(target)
+		PartyUpdate:FireClient(target, "INVITE", player.UserId, player.DisplayName ~= "" and player.DisplayName or player.Name)
+		notify(player, "Party invitation sent to " .. target.Name .. ".")
+		task.delay(PARTY_INVITE_SECONDS, function()
+			local current = partyInvitesByTarget[targetUserId]
+			if current and current[player.UserId] == invitation then
+				current[player.UserId] = nil
+				local stillThere = Players:GetPlayerByUserId(targetUserId)
+				if stillThere then
+					syncPartyClient(stillThere)
+					notify(stillThere, "A party invitation has expired.")
+				end
+			end
+		end)
+
+	elseif action == "ACCEPT" then
+		if type(targetUserId) ~= "number" then
+			notify(player, "Invalid party invitation.")
+			return
+		end
+		local invites = partyInvitesByTarget[player.UserId]
+		local invitation = invites and invites[targetUserId]
+		if not invitation or invitation.expiresAt <= os.clock() then
+			notify(player, "That party invitation has expired.")
+			syncPartyClient(player)
+			return
+		end
+		local leader = Players:GetPlayerByUserId(targetUserId)
+		local party = partiesByLeader[targetUserId]
+		if not leader or not party or leavingPlayers[leader] then
+			invites[targetUserId] = nil
+			notify(player, "That party is no longer available.")
+			syncPartyClient(player)
+			return
+		end
+		if partyByUserId[player.UserId] then
+			notify(player, "Leave your current party before joining another.")
+			return
+		end
+		local memberCount = 0
+		for _ in pairs(party.members) do memberCount += 1 end
+		if memberCount >= MAX_PARTY_SIZE then
+			invites[targetUserId] = nil
+			notify(player, "That party is full.")
+			syncPartyClient(player)
+			return
+		end
+
+		party.members[player.UserId] = true
+		partyByUserId[player.UserId] = party
+		invites[targetUserId] = nil
+		syncPartyMembers(party)
+		syncPartyClient(player)
+		notify(player, "You joined " .. leader.Name .. "'s party.")
+		notify(leader, player.Name .. " joined your party.")
+
+	elseif action == "DECLINE" then
+		if type(targetUserId) ~= "number" then return end
+		local invites = partyInvitesByTarget[player.UserId]
+		local invitation = invites and invites[targetUserId]
+		if invitation then
+			invites[targetUserId] = nil
+			local leader = Players:GetPlayerByUserId(targetUserId)
+			if leader then notify(leader, player.Name .. " declined your party invitation.") end
+		end
+		syncPartyClient(player)
+
+	elseif action == "LEAVE" then
+		if not partyByUserId[player.UserId] then
+			notify(player, "You are not in a party.")
+			return
+		end
+		removePartyMember(player)
+		syncPartyClient(player)
+		notify(player, "You left the party.")
+	else
+		notify(player, "Unknown party action.")
+	end
+end)
+
+
 
 -- Coalesce frequent crystal pickups into at most one delayed save per player.
 -- PlayerRemoving still performs its own immediate final save.
@@ -2004,6 +2272,7 @@ local function loadPlayer(player)
 
 	pushState(player)
 	loadingPlayers[player] = nil
+	syncPartyClient(player)
 end
 
 local function refreshPassOwnership(player)
@@ -2536,6 +2805,7 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
 	leavingPlayers[player] = true
+	removePartyMember(player)
 	-- Loading and saving both yield. Wait briefly for an in-flight load to
 	-- finish before attempting the final save, otherwise a fast disconnect
 	-- could leave the session without ever saving its loaded data.
