@@ -2007,12 +2007,20 @@ local function refreshPassOwnership(player)
 	for passKey, passId in pairs(GAMEPASS_IDS) do
 		local owns = false
 		if type(passId) == "number" and passId > 0 then
-			local ok, result = pcall(function()
-				return MarketplaceService:UserOwnsGamePassAsync(player.UserId, passId)
-			end)
-			owns = ok and result == true
-			if not ok then
-				warn("[MythlingRealms] Could not check Game Pass " .. passKey .. " for " .. player.Name)
+			for attempt = 1, 3 do
+				local ok, result = pcall(function()
+					return MarketplaceService:UserOwnsGamePassAsync(player.UserId, passId)
+				end)
+				if ok then
+					owns = result == true
+					break
+				end
+
+				warn("[MythlingRealms] Game Pass check attempt " .. attempt
+					.. " failed for " .. passKey .. " / " .. player.Name)
+				if attempt < 3 then
+					task.wait(attempt * 0.5)
+				end
 			end
 		end
 		cache[passKey] = owns
