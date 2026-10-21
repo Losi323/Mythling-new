@@ -59,6 +59,8 @@ local StateChanged = getOrCreate("RemoteEvent", "StateChanged")
 local Notify = getOrCreate("RemoteEvent", "Notify")
 local OpenEgg = getOrCreate("RemoteEvent", "OpenEgg")
 local EquipPet = getOrCreate("RemoteEvent", "EquipPet")
+local ClaimDailyReward = getOrCreate("RemoteEvent", "ClaimDailyReward")
+local AttackEnemy = getOrCreate("RemoteEvent", "AttackEnemy")
 
 --==================================================
 -- MYTHLINGS
@@ -249,6 +251,41 @@ local QUESTS = {
 		reward = 400,
 		stat = "petLevel",
 	},
+	{
+		title = "New Horizons",
+		description = "Unlock the Emberfall world",
+		target = 2,
+		reward = 250,
+		stat = "worldsUnlocked",
+	},
+	{
+		title = "Emberfall Expedition",
+		description = "Collect 20 crystals in Emberfall",
+		target = 20,
+		reward = 500,
+		stat = "emberfallCollected",
+	},
+	{
+		title = "Guardian Hunter",
+		description = "Defeat 10 creatures",
+		target = 10,
+		reward = 400,
+		stat = "enemiesDefeated",
+	},
+	{
+		title = "Mythling Collector",
+		description = "Open 5 eggs",
+		target = 5,
+		reward = 500,
+		stat = "totalEggsOpened",
+	},
+	{
+		title = "Legend in the Making",
+		description = "Reach Mythling level 10",
+		target = 10,
+		reward = 800,
+		stat = "petLevel",
+	},
 }
 
 --==================================================
@@ -263,7 +300,7 @@ local savingPlayers = {}
 
 local function defaultData()
 	return {
-		schemaVersion = 3,
+		schemaVersion = 4,
 		starshards = 0,
 		pet = nil,
 
@@ -277,8 +314,13 @@ local function defaultData()
 		evolvedPets = {},
 
 		totalCollected = 0,
+		emberfallCollected = 0,
+		enemiesDefeated = 0,
+		totalEggsOpened = 0,
 		worldsUnlocked = 1,
 		questStage = 1,
+		lastDailyClaimDay = 0,
+		dailyStreak = 0,
 		ownedPets = {},
 	}
 end
@@ -381,7 +423,7 @@ local function cloneData(data)
 		or false
 
 	return {
-		schemaVersion = 3,
+		schemaVersion = 4,
 
 		starshards = math.max(
 			0,
@@ -399,6 +441,28 @@ local function cloneData(data)
 		totalCollected = math.max(
 			0,
 			math.floor(tonumber(data.totalCollected) or 0)
+		),
+
+		emberfallCollected = math.max(
+			0,
+			math.floor(tonumber(data.emberfallCollected) or 0)
+		),
+		enemiesDefeated = math.max(
+			0,
+			math.floor(tonumber(data.enemiesDefeated) or 0)
+		),
+		totalEggsOpened = math.max(
+			0,
+			math.floor(tonumber(data.totalEggsOpened) or 0)
+		),
+		lastDailyClaimDay = math.max(
+			0,
+			math.floor(tonumber(data.lastDailyClaimDay) or 0)
+		),
+		dailyStreak = math.clamp(
+			math.floor(tonumber(data.dailyStreak) or 0),
+			0,
+			1000
 		),
 
 		worldsUnlocked = math.clamp(
@@ -512,6 +576,12 @@ local function stateForClient(data)
 			data.evolvedPets[petName] == true
 	end
 
+	local todayDay = math.floor(os.time() / 86400)
+	local nextDailyStreak = data.lastDailyClaimDay == todayDay - 1
+		and math.min((data.dailyStreak or 0) + 1, 8)
+		or 1
+	local nextDailyReward = 100 + (nextDailyStreak - 1) * 50
+
 	return {
 		starshards = data.starshards,
 		pet = data.pet,
@@ -534,6 +604,14 @@ local function stateForClient(data)
 
 		eggCost = EGG_COST,
 		eggOdds = EGG_ODDS,
+
+		enemiesDefeated = data.enemiesDefeated or 0,
+		emberfallCollected = data.emberfallCollected or 0,
+		totalEggsOpened = data.totalEggsOpened or 0,
+		dailyStreak = data.dailyStreak or 0,
+		dailyRewardAvailable = (data.lastDailyClaimDay or 0) < todayDay,
+		dailyRewardStreak = nextDailyStreak,
+		dailyRewardAmount = nextDailyReward,
 
 		questStage = data.questStage,
 		questTitle = quest and quest.title or "Forest Guardian",
