@@ -6,6 +6,7 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 - [x] Revisar a estrutura Rojo e os scripts principais.
 - [x] Manter as alterações em branch de trabalho; não modificar diretamente `main`.
 - [x] Separar a geometria gerada em `Workspace.MythlingRealmsRuntime`, sem destruir `Workspace.MythlingMap`.
+- [x] Tornar o puzzle Forgotten Ruins autossuficiente: criar geometria ausente e manter as runas por jogador, com recompensa guardada no DataStore principal.
 - [ ] Conferir o mapa visualmente no Studio e reconciliar a pasta `MythlingMap/ForgottenRuins` com o layout final desejado.
 
 ## Fase 2 — Dados, remotes e persistência
@@ -41,6 +42,7 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 
 ## Fase 6 — Combate
 - [x] Criaturas geradas no servidor em Starfall Haven e Emberfall.
+- [x] Criaturas perseguem jogadores próximos no próprio mundo e atacam com dano/cooldown moderados.
 - [x] Compartilhar a recompensa base de uma criatura entre contribuidores próximos; bônus por evento/passe é aplicado individualmente.
 - [x] Ataques validados no servidor por jogador, alcance, personagem vivo e mundo desbloqueado.
 - [x] Vida visível das criaturas, recompensas e XP do mascote equipado.
@@ -68,6 +70,7 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 - [x] Cristais e criaturas compartilhados no mundo; recompensas validadas por servidor.
 - [x] Tabelas de classificação do jogador existentes para moeda/nível.
 - [x] Recompensas de combate compartilhadas proporcionalmente entre contribuidores próximos; leaderstats incluem cristais e criaturas derrotadas.
+- [x] Contribuições e salvamentos de combate são agregados para evitar rajadas desnecessárias ao DataStore.
 - [ ] Testar dois ou mais jogadores disputando a mesma criatura/cristal.
 - [ ] Sistema de grupos, trocas e presentes não implementado nesta entrega; definir regras anti-fraude antes de adicionar.
 
