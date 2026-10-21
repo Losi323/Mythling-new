@@ -877,9 +877,9 @@ local function stateForClient(data, player)
 
 		activeEvent = activeEvent,
 		questStage = data.questStage,
-		questTitle = quest and quest.title or "Forest Guardian",
+		questTitle = quest and quest.title or "Campaign Complete",
 		questDescription = quest and quest.description
-			or "All starter quests completed!",
+			or "You have completed all current quests. More adventures can be added in a future update.",
 
 		questProgress = questProgress,
 		questTarget = quest and quest.target or 0,
