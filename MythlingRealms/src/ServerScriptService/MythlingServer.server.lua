@@ -1414,6 +1414,137 @@ local emberPortal = makePart(
 
 emberPortal.Transparency = 0.12
 
+-- Decorative frames and lighting help players distinguish both world gates.
+local function addPortalFrame(prefix, centerX, centerZ, color)
+	for _, side in ipairs({-1, 1}) do
+		local pillar = makePart(
+			prefix .. "_Pillar_" .. tostring(side),
+			Vector3.new(2.2, 18, 2.2),
+			Vector3.new(centerX + side * 7.2, 8, centerZ),
+			Color3.fromRGB(59, 62, 89),
+			Enum.Material.Slate
+		)
+		pillar.CanCollide = false
+
+		local gem = makePart(
+			prefix .. "_PillarGem_" .. tostring(side),
+			Vector3.new(1.2, 2.4, 1.2),
+			Vector3.new(centerX + side * 7.2, 10.5, centerZ - 0.3),
+			color,
+			Enum.Material.Neon
+		)
+		gem.CanCollide = false
+	end
+
+	local lintel = makePart(
+		prefix .. "_Lintel",
+		Vector3.new(17, 2.2, 2.4),
+		Vector3.new(centerX, 17, centerZ),
+		Color3.fromRGB(59, 62, 89),
+		Enum.Material.Slate
+	)
+	lintel.CanCollide = false
+
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = 22
+	light.Brightness = 1.6
+	light.Parent = prefix == "StarfallGate" and portal or emberPortal
+end
+
+addPortalFrame("StarfallGate", 0, -62, Color3.fromRGB(166, 128, 255))
+addPortalFrame("EmberfallGate", 280, -62, Color3.fromRGB(255, 116, 66))
+
+makePart(
+	"EmberfallPathToPortal",
+	Vector3.new(12, 1, 48),
+	Vector3.new(280, -0.2, -36),
+	Color3.fromRGB(178, 123, 100),
+	Enum.Material.Slate
+)
+
+-- A small forest ring frames Starfall Haven without crowding the plaza or crystals.
+local function makeTree(name, x, z, foliageColor)
+	local trunk = makePart(
+		name .. "_Trunk",
+		Vector3.new(2.4, 8, 2.4),
+		Vector3.new(x, 3, z),
+		Color3.fromRGB(111, 77, 53),
+		Enum.Material.Wood
+	)
+	trunk.CanCollide = true
+
+	local crown = makePart(
+		name .. "_Crown",
+		Vector3.new(9, 9, 9),
+		Vector3.new(x, 8, z),
+		foliageColor,
+		Enum.Material.Grass
+	)
+	crown.Shape = Enum.PartType.Ball
+	crown.CanCollide = false
+
+	local crownTop = makePart(
+		name .. "_CrownTop",
+		Vector3.new(6, 6, 6),
+		Vector3.new(x + 1.8, 10, z - 0.7),
+		foliageColor:Lerp(Color3.fromRGB(235, 255, 204), 0.15),
+		Enum.Material.Grass
+	)
+	crownTop.Shape = Enum.PartType.Ball
+	crownTop.CanCollide = false
+end
+
+for index, treePosition in ipairs({
+	Vector3.new(-68, 0, -68),
+	Vector3.new(68, 0, -68),
+	Vector3.new(-72, 0, 48),
+	Vector3.new(72, 0, 48),
+	Vector3.new(-76, 0, -6),
+	Vector3.new(76, 0, -6),
+}) do
+	local foliage = index % 2 == 0
+		and Color3.fromRGB(76, 179, 122)
+		or Color3.fromRGB(92, 199, 140)
+	makeTree("StarfallTree_" .. index, treePosition.X, treePosition.Z, foliage)
+end
+
+-- Emberfall's basalt ridges and glowing fissures make the second world read
+-- differently from the green starter island.
+for index, spirePosition in ipairs({
+	Vector3.new(218, 0, -48),
+	Vector3.new(342, 0, -48),
+	Vector3.new(218, 0, 48),
+	Vector3.new(342, 0, 48),
+}) do
+	local spire = makePart(
+		"EmberfallRiftSpire_" .. index,
+		Vector3.new(7, 18 + (index % 2) * 4, 7),
+		Vector3.new(spirePosition.X, 8 + (index % 2) * 2, spirePosition.Z),
+		Color3.fromRGB(62, 54, 58),
+		Enum.Material.Basalt
+	)
+	spire.Shape = Enum.PartType.Block
+	spire.CanCollide = true
+end
+
+for index, fissure in ipairs({
+	{Vector3.new(280, -0.72, 59), Vector3.new(68, 0.18, 2.2)},
+	{Vector3.new(244, -0.72, 42), Vector3.new(2.2, 0.18, 24)},
+	{Vector3.new(316, -0.72, -42), Vector3.new(2.2, 0.18, 24)},
+	{Vector3.new(280, -0.72, -50), Vector3.new(40, 0.18, 1.8)},
+}) do
+	local lava = makePart(
+		"EmberfallGlowFissure_" .. index,
+		fissure[2],
+		fissure[1],
+		Color3.fromRGB(255, 91, 45),
+		Enum.Material.Neon
+	)
+	lava.Transparency = 0.22
+	lava.CanCollide = false
+end
+
 makeLabel(
 	portal,
 	"EMBERFALL\nUnlock: 1,000 Starshards + Level 5"
@@ -1527,6 +1658,13 @@ local function makeCrystal(index, position, worldName)
 	})[((index - 1) % 3) + 1]
 
 	crystal.Parent = crystalFolder
+
+	local crystalLight = Instance.new("PointLight")
+	crystalLight.Name = "CrystalGlow"
+	crystalLight.Color = crystal.Color
+	crystalLight.Range = 10
+	crystalLight.Brightness = 0.65
+	crystalLight.Parent = crystal
 
 	local prompt = Instance.new("ProximityPrompt")
 
