@@ -8,7 +8,7 @@ Mythling Realms is a Roblox collection-and-progression game project built with L
 - Basic Egg collection, server-selected rewards, validated rarity weights, and a reveal animation.
 - Multi-stage progression quests covering crystal collection, Emberfall, the Forgotten Ruins vault, creature battles, egg openings, and levels.
 - Starfall Haven and Emberfall, with server-validated portals and collection access.
-- Basic server-authoritative creature combat, visible creature health, XP and Starshard rewards, co-op contribution sharing, and respawns.
+- Server-authoritative creature pursuit and combat, visible health, XP and Starshard rewards, co-op contribution sharing, and respawns.
 - A third Forgotten Ruins island with a three-rune vault puzzle and one-time persisted reward.
 - Daily login reward streaks, a daily Starshard wheel, and rotating hourly global events.
 - Optional Game Pass support for 2x Starshards and the VIP Aurora Stag companion. Both pass IDs are intentionally set to zero until real passes are created.
@@ -19,6 +19,7 @@ Mythling Realms is a Roblox collection-and-progression game project built with L
 - MythlingRealms/default.project.json — Rojo project mapping.
 - MythlingRealms/src/ServerScriptService/MythlingServer.server.lua — authoritative game state, progression, DataStore, map, combat, events, and purchases.
 - MythlingRealms/src/StarterPlayer/StarterPlayerScripts/MythlingClient.client.lua — menus, inventory, egg reveal, daily wheel, event banner, and HUD.
+- MythlingRealms/src/Workspace/MythlingMap/ForgottenRuins/VaultPuzzle/VaultPuzzleScript.server.lua — rune puzzle, island geometry, and server-only reward handoff.
 - MythlingRealms/CHECKLIST_AND_RELEASE.md — implementation/release checklist, including work that needs Roblox Studio.
 - MythlingRealms/MONETIZATION_SETUP.md — how to configure the real Game Pass IDs.
 
