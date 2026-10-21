@@ -2856,6 +2856,7 @@ end)
 
 local function cleanupRemovedPlayer(player)
 	removePetVisual(player)
+	loadingPlayers[player] = nil
 	playerData[player] = nil
 	gamePassCache[player] = nil
 	saveDebounceScheduled[player] = nil
