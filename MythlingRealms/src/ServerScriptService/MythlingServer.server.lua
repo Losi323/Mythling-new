@@ -613,20 +613,17 @@ end
 -- MAP
 --==================================================
 
--- Reuse an existing map folder instead of destroying it at startup.
--- Imported scenery and Rojo-managed instances may live inside this folder.
-local map = workspace:FindFirstChild("MythlingRealmsMap")
-
-if not map then
-	map = Instance.new("Folder")
-	map.Name = "MythlingRealmsMap"
-	map.Parent = workspace
-elseif not map:IsA("Folder") then
-	warn("[MythlingRealms] Workspace.MythlingRealmsMap exists but is not a Folder.")
-	map = Instance.new("Folder")
-	map.Name = "MythlingRealmsRuntime"
-	map.Parent = workspace
+-- Keep generated gameplay geometry separate from authored/imported map assets.
+-- Only this runtime folder is rebuilt; Workspace.MythlingMap and any other
+-- user-authored scenery are left untouched.
+local oldRuntimeMap = workspace:FindFirstChild("MythlingRealmsRuntime")
+if oldRuntimeMap then
+	oldRuntimeMap:Destroy()
 end
+
+local map = Instance.new("Folder")
+map.Name = "MythlingRealmsRuntime"
+map.Parent = workspace
 
 local function makePart(
 	name,
