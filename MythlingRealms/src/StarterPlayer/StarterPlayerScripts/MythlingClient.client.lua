@@ -8,6 +8,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local MarketplaceService = game:GetService("MarketplaceService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -63,13 +64,14 @@ local PET_INFO = {
 	Stormling = { emoji = "PET", rarity = "Rare", color = Color3.fromRGB(83, 177, 235) },
 	Glacub = { emoji = "PET", rarity = "Epic", color = Color3.fromRGB(120, 220, 255) },
 	Starwhisp = { emoji = "PET", rarity = "Legendary", color = Color3.fromRGB(255, 199, 73) },
+	AuroraStag = { emoji = "PET", rarity = "VIP", color = Color3.fromRGB(120, 240, 226) },
 }
 
 local PET_ORDER = {
 	"EmberFox", "Mossbun", "Tidefin",
 	"Cinderling", "Pebblit", "Bloomlet",
 	"Sunpup", "Duskmoth", "Voltkit", "Stormling",
-	"Glacub", "Starwhisp",
+	"Glacub", "Starwhisp", "AuroraStag",
 }
 
 local STARTERS = { "EmberFox", "Mossbun", "Tidefin" }
@@ -832,6 +834,7 @@ local function getRarityColor(rarity)
 		Rare = Color3.fromRGB(81, 177, 255),
 		Epic = Color3.fromRGB(190, 113, 255),
 		Legendary = Color3.fromRGB(255, 199, 73),
+		VIP = Color3.fromRGB(120, 240, 226),
 		Starter = COLORS.accentLight,
 	}
 	return colors[rarity] or COLORS.gold
@@ -1588,6 +1591,99 @@ end
 -- QUESTS AND PROGRESSION
 --========================================================
 
+local function showPremiumShop()
+	openMenu("PremiumShop", "SUPPORT MYTHLING REALMS")
+
+	local intro = newLabel(
+		content,
+		"Optional purchases. Every benefit is explained before you buy; Roblox displays the final price in its secure purchase window.",
+		UDim2.new(1, -8, 0, 56),
+		UDim2.new(),
+		13,
+		COLORS.muted
+	)
+	intro.LayoutOrder = 1
+	intro.TextWrapped = true
+	intro.TextYAlignment = Enum.TextYAlignment.Top
+
+	local passes = currentState.gamePasses or {}
+	for index, pass in ipairs(passes) do
+		local card = newFrame(
+			content,
+			"Pass_" .. tostring(pass.key),
+			UDim2.new(1, -8, 0, 112),
+			UDim2.new(),
+			COLORS.panel
+		)
+		card.LayoutOrder = index + 1
+		stroke(card, pass.key == "VIPCompanion" and COLORS.gold or COLORS.accent, 1.3)
+
+		local titleLabel = newLabel(
+			card,
+			tostring(pass.name or "Game Pass"),
+			UDim2.new(1, -18, 0, 26),
+			UDim2.new(0, 9, 0, 8),
+			15,
+			pass.key == "VIPCompanion" and COLORS.gold or COLORS.text
+		)
+		titleLabel.Font = Enum.Font.GothamBold
+
+		local description = newLabel(
+			card,
+			tostring(pass.description or "Optional cosmetic or gameplay benefit."),
+			UDim2.new(1, -18, 0, 32),
+			UDim2.new(0, 9, 0, 35),
+			11,
+			COLORS.muted
+		)
+		description.TextWrapped = true
+		description.TextYAlignment = Enum.TextYAlignment.Top
+
+		local owned = pass.owned == true
+		local passId = tonumber(pass.passId) or 0
+		local configured = pass.configured == true and passId > 0
+		local buttonText = owned and "OWNED" or (configured and "BUY PASS" or "SETUP REQUIRED")
+		local actionButton = newButton(
+			card,
+			buttonText,
+			UDim2.new(0, 130, 0, 30),
+			UDim2.new(1, -140, 1, -36),
+			function()
+				if owned then
+					showToast("You already own this pass.", COLORS.green)
+					return
+				end
+				if not configured then
+					showToast("This pass is disabled until its real ID is configured.", COLORS.gold)
+					return
+				end
+
+				local ok, err = pcall(function()
+					MarketplaceService:PromptGamePassPurchase(player, passId)
+				end)
+				if not ok then
+					warn("[MythlingRealms] Could not open Game Pass prompt:", err)
+					showToast("Roblox could not open the purchase prompt.", COLORS.red)
+				end
+			end,
+			owned and COLORS.green or (configured and COLORS.accent or COLORS.panelLight)
+		)
+		actionButton.Active = not owned and configured
+		actionButton.AutoButtonColor = not owned and configured
+	end
+
+	local note = newLabel(
+		content,
+		"Game Pass IDs are intentionally disabled until real IDs are set in MythlingServer.server.lua. No fake IDs or prices are used.",
+		UDim2.new(1, -8, 0, 48),
+		UDim2.new(),
+		12,
+		COLORS.muted
+	)
+	note.LayoutOrder = 10
+	note.TextWrapped = true
+end
+
 local function showQuests()
 	openMenu("Quests", "QUESTS & PROGRESS")
 
@@ -1958,8 +2054,8 @@ evolveHudButton.Font = Enum.Font.GothamBold
 local buttonBar = newFrame(
 	hud,
 	"ButtonBar",
-	UDim2.new(0, 76, 0, 306),
-	UDim2.new(0, 12, 0.5, -153),
+	UDim2.new(0, 76, 0, 360),
+	UDim2.new(0, 12, 0.5, -180),
 	COLORS.background
 )
 buttonBar.BackgroundTransparency = 0.12
@@ -2058,6 +2154,7 @@ addHudButton(5, "Fight", "ATTACK", function()
 	end
 	invokeRemote(AttackEnemy)
 end, COLORS.red)
+addHudButton(6, "Shop", "SHOP", showPremiumShop, COLORS.panelLight)
 
 --========================================================
 -- STATE RENDERING
@@ -2133,6 +2230,8 @@ function renderState()
 		showEggShop()
 	elseif currentMenu == "DailyReward" then
 		showDailyReward()
+	elseif currentMenu == "PremiumShop" then
+		showPremiumShop()
 	elseif currentMenu == "Quests" then
 		showQuests()
 	elseif currentMenu == "PetDetails" and currentPet then
