@@ -478,7 +478,7 @@ local savePlayer
 
 local function defaultData()
 	return {
-		schemaVersion = 4,
+		schemaVersion = 5,
 		starshards = 0,
 		pet = nil,
 
@@ -613,7 +613,7 @@ local function cloneData(data)
 		or false
 
 	return {
-		schemaVersion = 4,
+		schemaVersion = 5,
 
 		starshards = math.max(
 			0,
