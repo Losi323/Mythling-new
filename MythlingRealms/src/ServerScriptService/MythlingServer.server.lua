@@ -190,6 +190,32 @@ local EGG_ODDS = {
 	Legendary = 3,
 }
 
+-- Fail loudly during development if the egg table and the displayed odds drift
+-- apart. This prevents a silent mismatch between rarity labels and roll weights.
+do
+	local totalWeight = 0
+	local rarityWeights = {}
+
+	for _, entry in ipairs(EGG_POOL) do
+		assert(PETS[entry.pet], "Unknown Mythling in EGG_POOL: " .. tostring(entry.pet))
+		assert(type(entry.weight) == "number" and entry.weight >= 0,
+			"Invalid egg weight for " .. tostring(entry.pet))
+
+		totalWeight += entry.weight
+		rarityWeights[entry.rarity] = (rarityWeights[entry.rarity] or 0) + entry.weight
+	end
+
+	assert(math.abs(totalWeight - 100) < 0.0001,
+		"EGG_POOL weights must total 100; got " .. tostring(totalWeight))
+
+	for rarity, expected in pairs(EGG_ODDS) do
+		local actual = rarityWeights[rarity] or 0
+		assert(math.abs(actual - expected) < 0.0001,
+			"EGG_ODDS mismatch for " .. rarity .. ": expected "
+				.. tostring(expected) .. ", got " .. tostring(actual))
+	end
+end
+
 --==================================================
 -- QUESTS
 --==================================================
