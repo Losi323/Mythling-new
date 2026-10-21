@@ -1079,18 +1079,19 @@ local function makeCrystal(index, position, worldName)
 			return
 		end
 
-		busy = true
-		prompt.Enabled = false
-		crystal.Transparency = 1
-
 		local data = playerData[player]
+		if not data or leavingPlayers[player] then return end
 
-		-- Server-side world access check: hiding the portal is not enough,
-		-- because clients can manipulate their character position.
+		-- Validate world access before consuming the crystal's shared cooldown.
+		-- Otherwise an unauthorized attempt could leave that crystal hidden.
 		if worldName == "Emberfall" and data.worldsUnlocked < 2 then
 			notify(player, "Unlock Emberfall before collecting crystals here.")
 			return
 		end
+
+		busy = true
+		prompt.Enabled = false
+		crystal.Transparency = 1
 
 		syncEquippedPetData(data)
 
