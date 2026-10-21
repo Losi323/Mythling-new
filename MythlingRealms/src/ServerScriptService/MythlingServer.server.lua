@@ -2198,16 +2198,25 @@ AttackEnemy.OnServerEvent:Connect(function(player)
 
 	local activeEvent = getActiveEvent()
 	local allocated = 0
+	local allocatedXP = 0
 	local killerShareIndex = 1
 	for index, participant in ipairs(participants) do
 		if participant.player == player then
 			killerShareIndex = index
 		end
-		local share = math.floor(baseReward * participant.damage / totalDamage)
+		local contributionRatio = participant.damage / totalDamage
+		local share = math.floor(baseReward * contributionRatio)
 		participant.baseShare = share
 		allocated += share
+
+		local xpShare = math.floor(40 * contributionRatio)
+		participant.xpShare = xpShare
+		allocatedXP += xpShare
 	end
+	-- Give rounding remainders to the player who landed the final blow so the
+	-- full base Starshard pool and the 40 XP pool are conserved.
 	participants[killerShareIndex].baseShare += baseReward - allocated
+	participants[killerShareIndex].xpShare += 40 - allocatedXP
 
 	for _, participant in ipairs(participants) do
 		local contributor = participant.player
@@ -2221,7 +2230,7 @@ AttackEnemy.OnServerEvent:Connect(function(player)
 
 		contributorData.enemiesDefeated = (contributorData.enemiesDefeated or 0) + 1
 		contributorData.starshards += reward
-		local xpReward = contributor == player and 40 or 20
+		local xpReward = participant.xpShare or 0
 		local leveledUp = grantCombatXP(contributorData, xpReward)
 		pushState(contributor)
 
