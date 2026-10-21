@@ -16,10 +16,13 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 - [x] Repetir tentativas de salvamento após falhas transitórias do DataStore.
 - [x] Evitar inicializar dados de jogador que saiu durante o carregamento.
 - [x] Aguardar operações de salvamento e aumentar a janela de encerramento.
+- [x] Permitir que salvamentos urgentes antecipem um autosave agendado, mantendo a agregação de gravações rotineiras.
+- [x] Tentar persistência imediata da recompensa única do Forgotten Vault e limpar o estado temporário do puzzle ao sair.
 - [ ] Testar migração de dados existentes e encerramento com vários jogadores no Studio com acesso à API habilitado.
 
 ## Fase 3 — Mascotes e coleção
 - [x] Catálogo de mascotes, raridades, duplicatas, equipamento, nível e evolução.
+- [x] Cartões de escolha inicial com visual do mascote, elemento e descrição, com altura ajustada para evitar sobreposição.
 - [x] Verificar propriedade antes de permitir equipar mascotes.
 - [x] Mascote VIP Aurora Stag existe como entrada exclusiva à posse do passe VIP; permanece fora do ovo básico.
 - [ ] Testar todas as combinações de mascote equipado, duplicata, evolução e reentrada.
@@ -68,6 +71,7 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 - [x] Impedir múltiplos giros diários por usuário, com base em dia UTC.
 - [x] Recompensa diária com sequência de dias e limite de bônus.
 - [x] Roleta diária com recompensas definidas exclusivamente pelo servidor.
+- [x] Posicionar os cinco marcadores de prêmio em intervalos iguais e girar o setor selecionado pelo resultado do servidor.
 - [ ] Verificar o comportamento entre servidores e na virada de hora/dia.
 
 ## Fase 9 — Multiplayer e cooperação
