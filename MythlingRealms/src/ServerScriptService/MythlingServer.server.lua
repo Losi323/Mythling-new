@@ -1847,7 +1847,8 @@ savePlayer = function(player)
 	-- player leaves, wait briefly for it to finish instead of silently
 	-- skipping the final save.
 	local waitDeadline = os.clock() + 12
-	while savingPlayers[player] do
+	local userId = player.UserId
+	while savingPlayers[userId] do
 		if os.clock() >= waitDeadline then
 			warn("[MythlingRealms] Timed out waiting for an earlier save for " .. player.Name)
 			return false
@@ -1859,13 +1860,13 @@ savePlayer = function(player)
 	end
 
 	-- Re-read current data after waiting, so the final snapshot includes
-	-- progress made while a previous save was in flight.
+	-- progress made while a previous save for the same account was in flight.
 	data = playerData[player]
 	if not data then
 		return false
 	end
 
-	savingPlayers[player] = true
+	savingPlayers[userId] = true
 	syncEquippedPetData(data)
 	local snapshot = cloneData(data)
 
@@ -1892,7 +1893,7 @@ savePlayer = function(player)
 		end
 	end
 
-	savingPlayers[player] = nil
+	savingPlayers[userId] = nil
 
 	if not success then
 		warn(
