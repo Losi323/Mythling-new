@@ -1310,83 +1310,87 @@ local function showQuests()
 	)
 	intro.LayoutOrder = 1
 
-	local quests = currentState.quests or currentState.questProgress
-	local questIndex = 0
+	-- The server currently exposes one active quest as flat fields,
+	-- not as a quests dictionary. Read that contract directly.
+	local questTitle = currentState.questTitle or "Forest Guardian"
+	local questDescription = currentState.questDescription or "No quest description available."
+	local questProgress = tonumber(currentState.questProgress) or 0
+	local questTarget = tonumber(currentState.questTarget) or 0
+	local questReward = tonumber(currentState.questReward) or 0
+	local questCompleted = currentState.questCompleted == true
+	local allQuestsComplete = currentState.allQuestsComplete == true
 
-	if type(quests) == "table" then
-		for questName, questData in pairs(quests) do
-			questIndex += 1
+	local card = newFrame(
+		content,
+		"ActiveQuest",
+		UDim2.new(1, -8, 0, 112),
+		UDim2.new(),
+		COLORS.panel
+	)
+	card.LayoutOrder = 2
+	stroke(card, questCompleted and COLORS.green or COLORS.border, 1.2)
 
-			local description = tostring(questName)
-			local progress = ""
+	local titleLabel = newLabel(
+		card,
+		allQuestsComplete and "ALL QUESTS COMPLETE" or questTitle,
+		UDim2.new(1, -20, 0, 24),
+		UDim2.new(0, 10, 0, 7),
+		13,
+		COLORS.text
+	)
+	titleLabel.Font = Enum.Font.GothamBold
 
-			if type(questData) == "table" then
-				description = questData.description or questData.name or description
-				local current = questData.progress or questData.current or 0
-				local goal = questData.goal or questData.target or 0
-				progress = tostring(current) .. " / " .. tostring(goal)
+	newLabel(
+		card,
+		allQuestsComplete and "You have completed all current quests." or questDescription,
+		UDim2.new(1, -20, 0, 26),
+		UDim2.new(0, 10, 0, 32),
+		11,
+		COLORS.muted
+	)
+
+	newLabel(
+		card,
+		allQuestsComplete and "Rewards claimed" or (
+			tostring(questProgress) .. " / " .. tostring(questTarget)
+			.. "  •  Reward: " .. tostring(questReward) .. " Starshards"
+		),
+		UDim2.new(1, -20, 0, 22),
+		UDim2.new(0, 10, 0, 61),
+		11,
+		questCompleted and COLORS.green or COLORS.gold
+	)
+
+	local claimButton = newButton(
+		card,
+		allQuestsComplete and "COMPLETED" or (questCompleted and "CLAIM REWARD" or "IN PROGRESS"),
+		UDim2.new(0, 126, 0, 30),
+		UDim2.new(1, -136, 1, -37),
+		function()
+			if allQuestsComplete then
+				showToast("All starter quests are completed!", COLORS.green)
+				return
+			end
+			if not questCompleted then
+				showToast("Complete the objective before claiming.", COLORS.gold)
+				return
 			end
 
-			local card = newFrame(
-				content,
-				"Quest_" .. tostring(questIndex),
-				UDim2.new(1, -8, 0, 78),
-				UDim2.new(),
-				COLORS.panel
-			)
-			card.LayoutOrder = questIndex + 1
-
-			newLabel(
-				card,
-				description,
-				UDim2.new(0.68, -8, 0, 38),
-				UDim2.new(0, 10, 0, 4),
-				12,
-				COLORS.text
-			)
-
-			newLabel(
-				card,
-				progress,
-				UDim2.new(0.68, -8, 0, 22),
-				UDim2.new(0, 10, 0, 44),
-				11,
-				COLORS.muted
-			)
-
-			newButton(
-				card,
-				"Claim",
-				UDim2.new(0.25, 0, 0, 32),
-				UDim2.new(0.72, 0, 0.5, -16),
-				function()
-					local ok = invokeRemote(ClaimQuest, questName)
-					if ok then
-						showToast("Claim request sent")
-						task.delay(0.3, function()
-							requestState()
-							if currentMenu == "Quests" then
-								showQuests()
-							end
-						end)
+			local ok = invokeRemote(ClaimQuest, questTitle)
+			if ok then
+				showToast("Quest claim sent", COLORS.green)
+				task.delay(0.3, function()
+					requestState()
+					if currentMenu == "Quests" then
+						showQuests()
 					end
-				end,
-				COLORS.green
-			)
-		end
-	end
-
-	if questIndex == 0 then
-		local fallback = newLabel(
-			content,
-			"Quest details will appear here when provided by the server.",
-			UDim2.new(1, -8, 0, 54),
-			UDim2.new(),
-			13,
-			COLORS.muted
-		)
-		fallback.LayoutOrder = 2
-	end
+				end)
+			end
+		end,
+		questCompleted and COLORS.green or COLORS.panelLight
+	)
+	claimButton.Active = questCompleted and not allQuestsComplete
+	claimButton.AutoButtonColor = questCompleted and not allQuestsComplete
 
 	local evolutionButton = newButton(
 		content,
