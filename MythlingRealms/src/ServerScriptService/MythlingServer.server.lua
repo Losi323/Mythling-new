@@ -2612,7 +2612,7 @@ vaultRewardRequest.OnInvoke = function(player)
 	data.starshards += reward
 	pushState(player)
 	notify(player, "Forgotten Vault opened! +" .. reward .. " Starshards.")
-	task.spawn(savePlayer, player)
+	scheduleSave(player, 10)
 	return true, reward
 end
 
@@ -2742,7 +2742,7 @@ local function refreshPassOwnership(player)
 		if cache.VIPCompanion and not ownsPet(data, "AuroraStag") then
 			addOwnedPet(data, "AuroraStag")
 			pushState(player)
-			task.spawn(savePlayer, player)
+			scheduleSave(player, 10)
 		else
 			pushState(player)
 		end
@@ -2773,7 +2773,7 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gameP
 	if data then
 		if passKey == "VIPCompanion" and not ownsPet(data, "AuroraStag") then
 			addOwnedPet(data, "AuroraStag")
-			task.spawn(savePlayer, player)
+			scheduleSave(player, 10)
 		end
 		pushState(player)
 		notify(player, "Purchase confirmed: " .. (passKey == "VIPCompanion" and "VIP Aurora Stag" or "2x Starshards") .. " unlocked!")
@@ -2839,7 +2839,7 @@ ChooseStarter.OnServerEvent:Connect(function(player, petName)
 			.. " is ready to explore!"
 	)
 
-	task.spawn(savePlayer, player)
+	scheduleSave(player, 10)
 end)
 
 --==================================================
@@ -2886,7 +2886,7 @@ BuyUpgrade.OnServerEvent:Connect(function(player)
 		"Mythling level increased to " .. data.petLevel .. "!"
 	)
 
-	task.spawn(savePlayer, player)
+	scheduleSave(player, 10)
 end)
 
 --==================================================
@@ -2955,7 +2955,7 @@ OpenEgg.OnServerEvent:Connect(function(player)
 		rarity
 	)
 
-	task.spawn(savePlayer, player)
+	scheduleSave(player, 10)
 end)
 
 --==================================================
@@ -2992,7 +2992,7 @@ EquipPet.OnServerEvent:Connect(function(player, petName)
 			.. " (Level " .. data.petLevel .. ")!"
 	)
 
-	task.spawn(savePlayer, player)
+	scheduleSave(player, 10)
 end)
 
 --==================================================
@@ -3046,7 +3046,7 @@ ClaimQuest.OnServerEvent:Connect(function(player, requestedQuestTitle)
 		"Quest complete! +" .. quest.reward .. " Starshards."
 	)
 
-	task.spawn(savePlayer, player)
+	scheduleSave(player, 10)
 end)
 
 --==================================================
@@ -3080,7 +3080,7 @@ ClaimDailyReward.OnServerEvent:Connect(function(player)
 
 	pushState(player)
 	notify(player, "Daily reward claimed! +" .. reward .. " Starshards. Streak: " .. data.dailyStreak)
-	task.spawn(savePlayer, player)
+	scheduleSave(player, 10)
 end)
 
 -- The daily wheel awards only Starshards. Its sector is chosen here, never
@@ -3117,7 +3117,7 @@ SpinWheel.OnServerEvent:Connect(function(player)
 
 	pushState(player)
 	WheelResult:FireClient(player, rewardIndex, reward)
-	task.spawn(savePlayer, player)
+	scheduleSave(player, 10)
 end)
 
 --==================================================
@@ -3171,7 +3171,7 @@ EvolvePet.OnServerEvent:Connect(function(player)
 		"Evolution unlocked! +5 Starshards per crystal."
 	)
 
-	task.spawn(savePlayer, player)
+	scheduleSave(player, 10)
 end)
 
 --==================================================
@@ -3213,7 +3213,7 @@ UnlockWorld.OnServerEvent:Connect(function(player)
 		"Emberfall unlocked! Visit the orange portal."
 	)
 
-	task.spawn(savePlayer, player)
+	scheduleSave(player, 10)
 end)
 
 --==================================================
