@@ -1411,7 +1411,7 @@ RunService.Heartbeat:Connect(function(frameDelta)
 			local inTargetWorld = false
 
 			if root and humanoid and humanoid.Health > 0 and candidateData
-				and not leavingPlayers[candidate] then
+				and candidateData.pet and not leavingPlayers[candidate] then
 				local p = root.Position
 				if state.worldName == "Emberfall" then
 					inTargetWorld = candidateData.worldsUnlocked >= 2
