@@ -2246,7 +2246,7 @@ local function showStarterSelection()
 		local card = newFrame(
 			content,
 			"Starter_" .. petName,
-			UDim2.new(1, -8, 0, 100),
+			UDim2.new(1, -8, 0, 116),
 			UDim2.new(),
 			COLORS.panel
 		)
@@ -2272,7 +2272,7 @@ local function showStarterSelection()
 		local description = newLabel(
 			card,
 			elementDescription,
-			UDim2.new(0.48, 0, 0, 42),
+			UDim2.new(0.48, 0, 0, 34),
 			UDim2.new(0, 88, 0, 42),
 			11,
 			COLORS.muted
@@ -2284,7 +2284,7 @@ local function showStarterSelection()
 			card,
 			"Choose",
 			UDim2.new(0, 105, 0, 34),
-			UDim2.new(1, -115, 0.5, -17),
+			UDim2.new(1, -115, 1, -38),
 			function()
 				local ok = invokeRemote(ChooseStarter, petName)
 				if ok then
