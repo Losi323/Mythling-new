@@ -150,7 +150,7 @@ for index, x in ipairs({390, 420, 450, 480}) do
 		local lanternPost = ensurePart(
 			"RuinsBridgeLanternPost_" .. index .. "_" .. side,
 			Vector3.new(0.9, 3.6, 0.9),
-			Vector3.new(x, 1.8, side * 9),
+			Vector3.new(x, 1.8, side * 6),
 			Color3.fromRGB(81, 75, 72),
 			Enum.Material.Metal
 		)
@@ -159,7 +159,7 @@ for index, x in ipairs({390, 420, 450, 480}) do
 		local lantern = ensurePart(
 			"RuinsBridgeLantern_" .. index .. "_" .. side,
 			Vector3.new(1.25, 1.25, 1.25),
-			Vector3.new(x, 3.9, side * 9),
+			Vector3.new(x, 3.9, side * 6),
 			Color3.fromRGB(255, 199, 94),
 			Enum.Material.Neon
 		)
@@ -185,7 +185,7 @@ end
 local trailSignPost = ensurePart(
 	"ForgottenRuinsTrailSignPost",
 	Vector3.new(1.2, 7, 1.2),
-	Vector3.new(374, 3.5, 16),
+	Vector3.new(360, 2.5, 16),
 	Color3.fromRGB(108, 74, 48),
 	Enum.Material.Wood
 )
@@ -193,7 +193,7 @@ trailSignPost.CanCollide = true
 local trailSignBoard = ensurePart(
 	"ForgottenRuinsTrailSignBoard",
 	Vector3.new(18, 5, 1),
-	Vector3.new(374, 8, 16),
+	Vector3.new(360, 7, 16),
 	Color3.fromRGB(42, 52, 73),
 	Enum.Material.Slate
 )
