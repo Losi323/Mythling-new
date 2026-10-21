@@ -7,6 +7,7 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 - [x] Manter as alterações em branch de trabalho; não modificar diretamente `main`.
 - [x] Separar a geometria gerada em `Workspace.MythlingRealmsRuntime`, sem destruir `Workspace.MythlingMap`.
 - [x] Tornar o puzzle Forgotten Ruins autossuficiente: criar geometria ausente e manter as runas por jogador, com recompensa guardada no DataStore principal.
+- [x] Bloquear interações das runas/baú da Forgotten Ruins com validação de acesso no servidor até Emberfall ser desbloqueado.
 - [ ] Conferir o mapa visualmente no Studio e reconciliar a pasta `MythlingMap/ForgottenRuins` com o layout final desejado.
 
 ## Fase 2 — Dados, remotes e persistência
@@ -77,15 +78,16 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 
 ## Fase 10 — Monetização transparente
 - [x] Loja opcional com suporte a Game Pass de 2x Starshards e Game Pass VIP Aurora Stag.
+- [x] Suporte a três pacotes consumíveis de Starshards com ProcessReceipt idempotente e PurchaseId salvo com os dados do jogador.
 - [x] A compra usa a janela oficial do Roblox; o servidor valida a posse do passe e concede os benefícios.
-- [x] Passes com ID zero ficam desativados; nenhum ID ou preço fictício foi inserido.
-- [ ] Criar os passes no Creator Dashboard e preencher os IDs reais em GAMEPASS_IDS.
-- [ ] Criar Developer Products/recibos idempotentes se forem desejados consumíveis de moeda; isso não está implementado.
-- [ ] Testar compra, cancelamento, posse prévia e reentrada com conta de teste.
+- [x] Game Passes e Developer Products com ID zero ficam desativados; nenhum ID ou preço fictício foi inserido.
+- [ ] Criar os passes/produtos no Creator Dashboard e preencher os IDs reais em GAMEPASS_IDS e DEVELOPER_PRODUCTS.
+- [ ] Testar compra, cancelamento, reprocessamento de recibo, posse prévia e reentrada com conta de teste.
 
 ## Fase 11 — Economia e desempenho
 - [x] Recompensas, níveis e custo de upgrade permanecem calculados no servidor.
 - [x] Limites contra spam nas ações principais e verificação de distância para coleta/combate.
+- [x] HUD de navegação ampliado para 7 áreas e dimensionado para janelas/dispositivos menores.
 - [x] Recompensas de evento não se acumulam em cada reaparecimento de criatura.
 - [ ] Fazer perfil de desempenho com muitos jogadores/partes e rebalancear a economia após observar dados reais.
 
@@ -106,5 +108,6 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 
 ## Notas técnicas
 - Os scripts foram revisados estaticamente, incluindo uma verificação de equilíbrio de delimitadores/blocos, mas **não foram compilados nem executados no Roblox Studio neste ambiente**.
+- A configuração comercial permanece pendente: todos os IDs de compra são zero até serem criados no Creator Dashboard.
 - Os sistemas de eventos, roleta, recompensas e combate usam recompensas definidas no servidor; a interface é apenas visual.
 - A versão principal `main` é preservada até a revisão do PR consolidado.
