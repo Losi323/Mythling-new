@@ -55,7 +55,7 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 ## Fase 7 — Mundos e progressão
 - [x] Starfall Haven como área inicial.
 - [x] Emberfall com portal de ida e retorno.
-- [x] Terceira área, Forgotten Ruins, com ponte e puzzle de três runas.
+- [x] Terceira área, Forgotten Ruins, com ponte iluminada, sinalização de trilha e puzzle de três runas.
 - [x] Distinguir visualmente Starfall Haven e Emberfall com floresta, portais iluminados, pináculos de basalto e fissuras de lava.
 - [x] Verificar desbloqueio de Emberfall no servidor tanto no portal quanto na coleta/combate.
 - [x] Recompensas de cristais específicas por mundo.
