@@ -1564,9 +1564,17 @@ local function showDailyReward()
 	wheelButton.Active = currentState.dailyWheelAvailable
 	wheelButton.AutoButtonColor = currentState.dailyWheelAvailable
 
+	local oddsParts = {}
+	for _, entry in ipairs(wheelEntries) do
+		table.insert(
+			oddsParts,
+			formatNumber(tonumber(entry.amount) or 0)
+				.. " (" .. tostring(entry.weight or 0) .. "%)"
+		)
+	end
 	local wheelOdds = newLabel(
 		content,
-		"Prize odds: 100 (40%), 250 (30%), 500 (18%), 1,000 (10%), 2,500 (2%) Starshards.",
+		"Prize odds: " .. table.concat(oddsParts, ", ") .. " Starshards.",
 		UDim2.new(1, -8, 0, 44),
 		UDim2.new(),
 		12,
