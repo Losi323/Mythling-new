@@ -143,6 +143,82 @@ if not signGui then
 	signCorner.Parent = signText
 end
 
+-- Lanterns mark the long bridge from Emberfall to Forgotten Ruins without
+-- putting collision parts in the walking lane.
+for index, x in ipairs({390, 420, 450, 480}) do
+	for _, side in ipairs({-1, 1}) do
+		local lanternPost = ensurePart(
+			"RuinsBridgeLanternPost_" .. index .. "_" .. side,
+			Vector3.new(0.9, 3.6, 0.9),
+			Vector3.new(x, 1.8, side * 9),
+			Color3.fromRGB(81, 75, 72),
+			Enum.Material.Metal
+		)
+		lanternPost.CanCollide = false
+
+		local lantern = ensurePart(
+			"RuinsBridgeLantern_" .. index .. "_" .. side,
+			Vector3.new(1.25, 1.25, 1.25),
+			Vector3.new(x, 3.9, side * 9),
+			Color3.fromRGB(255, 199, 94),
+			Enum.Material.Neon
+		)
+		lantern.Shape = Enum.PartType.Ball
+		lantern.CanCollide = false
+
+		local glow = lantern:FindFirstChild("BridgeGlow")
+		if not glow then
+			glow = Instance.new("PointLight")
+			glow.Name = "BridgeGlow"
+			glow.Range = 9
+			glow.Brightness = 0.6
+			glow.Color = lantern.Color
+			glow.Parent = lantern
+		end
+	end
+end
+
+local trailSignPost = ensurePart(
+	"ForgottenRuinsTrailSignPost",
+	Vector3.new(1.2, 7, 1.2),
+	Vector3.new(374, 3.5, 16),
+	Color3.fromRGB(108, 74, 48),
+	Enum.Material.Wood
+)
+trailSignPost.CanCollide = true
+local trailSignBoard = ensurePart(
+	"ForgottenRuinsTrailSignBoard",
+	Vector3.new(18, 5, 1),
+	Vector3.new(374, 8, 16),
+	Color3.fromRGB(42, 52, 73),
+	Enum.Material.Slate
+)
+trailSignBoard.CanCollide = false
+local trailGui = trailSignBoard:FindFirstChild("TrailSignGui")
+if not trailGui then
+	trailGui = Instance.new("BillboardGui")
+	trailGui.Name = "TrailSignGui"
+	trailGui.Size = UDim2.fromOffset(260, 76)
+	trailGui.AlwaysOnTop = true
+	trailGui.Parent = trailSignBoard
+
+	local trailText = Instance.new("TextLabel")
+	trailText.Size = UDim2.fromScale(1, 1)
+	trailText.BackgroundColor3 = Color3.fromRGB(28, 35, 52)
+	trailText.BackgroundTransparency = 0.08
+	trailText.BorderSizePixel = 0
+	trailText.Font = Enum.Font.GothamBold
+	trailText.Text = "FORGOTTEN RUINS →\nThree runes • One vault reward"
+	trailText.TextColor3 = Color3.fromRGB(255, 221, 133)
+	trailText.TextScaled = true
+	trailText.TextWrapped = true
+	trailText.Parent = trailGui
+
+	local trailCorner = Instance.new("UICorner")
+	trailCorner.CornerRadius = UDim.new(0, 10)
+	trailCorner.Parent = trailText
+end
+
 local door = ensurePart(
 	"VaultDoor",
 	Vector3.new(14, 14, 2),
