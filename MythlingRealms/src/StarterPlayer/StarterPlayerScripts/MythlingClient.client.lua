@@ -32,6 +32,8 @@ local ClaimDailyReward = getRemote("ClaimDailyReward")
 local AttackEnemy = getRemote("AttackEnemy")
 local SpinWheel = getRemote("SpinWheel")
 local WheelResult = getRemote("WheelResult")
+local PartyAction = getRemote("PartyAction")
+local PartyUpdate = getRemote("PartyUpdate")
 
 --========================================================
 -- CONFIGURATION
@@ -86,6 +88,8 @@ local wheelBusy = false
 local wheelSpinAttempt = 0
 local wheelVisual = nil
 local wheelButton = nil
+local partyState = nil
+local partyInvites = {}
 
 --========================================================
 -- REMOTE HELPERS
@@ -1697,6 +1701,242 @@ local function showPremiumShop()
 	note.TextWrapped = true
 end
 
+--========================================================
+-- PARTY / CO-OP
+--========================================================
+
+local function showParty()
+	openMenu("Party", "PARTY & CO-OP")
+
+	local party = partyState
+	local intro = newLabel(
+		content,
+		"Create a party of up to 4 players, invite friends, and hunt creatures together. Nearby contributors share creature rewards.",
+		UDim2.new(1, -8, 0, 56),
+		UDim2.new(),
+		13,
+		COLORS.muted
+	)
+	intro.LayoutOrder = 1
+	intro.TextWrapped = true
+	intro.TextYAlignment = Enum.TextYAlignment.Top
+
+	local summary = newFrame(
+		content,
+		"PartySummary",
+		UDim2.new(1, -8, 0, 112),
+		UDim2.new(),
+		COLORS.panel
+	)
+	summary.LayoutOrder = 2
+	stroke(summary, party and COLORS.green or COLORS.border, 1.2)
+
+	local heading = newLabel(
+		summary,
+		party and ("PARTY · " .. tostring(party.memberCount or 1) .. "/" .. tostring(party.maxMembers or 4)) or "YOU ARE NOT IN A PARTY",
+		UDim2.new(1, -18, 0, 26),
+		UDim2.new(0, 9, 0, 8),
+		15,
+		party and COLORS.green or COLORS.text
+	)
+	heading.Font = Enum.Font.GothamBold
+
+	local memberNames = {}
+	if party and type(party.members) == "table" then
+		for _, member in ipairs(party.members) do
+			local label = tostring(member.name or member.username or "Player")
+			if member.isLeader then label ..= " (Leader)" end
+			table.insert(memberNames, label)
+		end
+	end
+	local members = newLabel(
+		summary,
+		party and table.concat(memberNames, "\n") or "Invite friends to start a cooperative party.",
+		UDim2.new(1, -18, 0, 52),
+		UDim2.new(0, 9, 0, 36),
+		12,
+		COLORS.muted
+	)
+	members.TextWrapped = true
+	members.TextYAlignment = Enum.TextYAlignment.Top
+
+	if party then
+		local leaveButton = newButton(
+			content,
+			party.isLeader and "DISBAND PARTY" or "LEAVE PARTY",
+			UDim2.new(1, -8, 0, 36),
+			UDim2.new(),
+			function()
+				invokeRemote(PartyAction, "LEAVE")
+			end,
+			COLORS.red
+		)
+		leaveButton.LayoutOrder = 3
+	end
+
+	local inviteHeading = newLabel(
+		content,
+		"PARTY INVITATIONS",
+		UDim2.new(1, -8, 0, 25),
+		UDim2.new(),
+		13,
+		COLORS.gold
+	)
+	inviteHeading.LayoutOrder = 4
+
+	local inviteCount = 0
+	for _, invitation in ipairs(partyInvites) do
+		inviteCount += 1
+		local card = newFrame(
+			content,
+			"PartyInvite_" .. tostring(invitation.leaderUserId),
+			UDim2.new(1, -8, 0, 76),
+			UDim2.new(),
+			COLORS.panel
+		)
+		card.LayoutOrder = 4 + inviteCount
+		stroke(card, COLORS.gold, 1)
+
+		local inviteLabel = newLabel(
+			card,
+			tostring(invitation.leaderName or "Player") .. " invited you",
+			UDim2.new(1, -16, 0, 24),
+			UDim2.new(0, 8, 0, 6),
+			12,
+			COLORS.text
+		)
+		inviteLabel.Font = Enum.Font.GothamBold
+
+		newButton(
+			card,
+			"ACCEPT",
+			UDim2.new(0.46, -5, 0, 30),
+			UDim2.new(0, 8, 1, -36),
+			function()
+				invokeRemote(PartyAction, "ACCEPT", invitation.leaderUserId)
+			end,
+			COLORS.green
+		)
+		newButton(
+			card,
+			"DECLINE",
+			UDim2.new(0.46, -5, 0, 30),
+			UDim2.new(0.54, 0, 1, -36),
+			function()
+				invokeRemote(PartyAction, "DECLINE", invitation.leaderUserId)
+			end,
+			COLORS.panelLight
+		)
+	end
+
+	if inviteCount == 0 then
+		local noInvites = newLabel(
+			content,
+			"No pending invitations.",
+			UDim2.new(1, -8, 0, 30),
+			UDim2.new(),
+			12,
+			COLORS.muted
+		)
+		noInvites.LayoutOrder = 5
+	end
+
+	local canInvite = not party or party.isLeader == true
+	local partyFull = party and (tonumber(party.memberCount) or 1) >= (tonumber(party.maxMembers) or 4)
+	local playerHeading = newLabel(
+		content,
+		canInvite and "INVITE A PLAYER" or "ONLY THE PARTY LEADER CAN INVITE",
+		UDim2.new(1, -8, 0, 25),
+		UDim2.new(),
+		13,
+		COLORS.accentLight
+	)
+	playerHeading.LayoutOrder = 6 + inviteCount
+
+	local candidates = {}
+	for _, candidate in ipairs(Players:GetPlayers()) do
+		if candidate ~= player and candidate.Parent == Players then
+			table.insert(candidates, candidate)
+		end
+	end
+	table.sort(candidates, function(a, b)
+		local an = a.DisplayName ~= "" and a.DisplayName or a.Name
+		local bn = b.DisplayName ~= "" and b.DisplayName or b.Name
+		return string.lower(an) < string.lower(bn)
+	end)
+
+	local candidateOrder = 7 + inviteCount
+	local availableCandidates = 0
+	for _, candidate in ipairs(candidates) do
+		local alreadyMember = false
+		if party and type(party.members) == "table" then
+			for _, member in ipairs(party.members) do
+				if member.userId == candidate.UserId then
+					alreadyMember = true
+					break
+				end
+			end
+		end
+
+		if not alreadyMember then
+			availableCandidates += 1
+			local candidateCard = newFrame(
+				content,
+				"InvitePlayer_" .. tostring(candidate.UserId),
+				UDim2.new(1, -8, 0, 54),
+				UDim2.new(),
+				COLORS.panel
+			)
+			candidateCard.LayoutOrder = candidateOrder
+			candidateOrder += 1
+
+			local name = candidate.DisplayName ~= "" and candidate.DisplayName or candidate.Name
+			local candidateLabel = newLabel(
+				candidateCard,
+				name,
+				UDim2.new(1, -125, 1, 0),
+				UDim2.new(0, 8, 0, 0),
+				12,
+				COLORS.text
+			)
+			candidateLabel.TextTruncate = Enum.TextTruncate.AtEnd
+
+			local inviteButton = newButton(
+				candidateCard,
+				partyFull and "FULL" or (canInvite and "INVITE" or "LEADER ONLY"),
+				UDim2.new(0, 112, 0, 32),
+				UDim2.new(1, -120, 0.5, -16),
+				function()
+					if not canInvite then
+						showToast("Only the party leader can invite players.", COLORS.gold)
+						return
+					end
+					if partyFull then
+						showToast("Your party is full.", COLORS.gold)
+						return
+					end
+					invokeRemote(PartyAction, "INVITE", candidate.UserId)
+				end,
+				canInvite and not partyFull and COLORS.accent or COLORS.panelLight
+			)
+			inviteButton.Active = canInvite and not partyFull
+			inviteButton.AutoButtonColor = canInvite and not partyFull
+		end
+	end
+
+	if availableCandidates == 0 then
+		local noPlayers = newLabel(
+			content,
+			"No other players are available in this server right now.",
+			UDim2.new(1, -8, 0, 34),
+			UDim2.new(),
+			12,
+			COLORS.muted
+		)
+		noPlayers.LayoutOrder = candidateOrder
+	end
+end
+
 local function showQuests()
 	openMenu("Quests", "QUESTS & PROGRESS")
 
@@ -2090,8 +2330,8 @@ evolveHudButton.Font = Enum.Font.GothamBold
 local buttonBar = newFrame(
 	hud,
 	"ButtonBar",
-	UDim2.new(0, 76, 0, 360),
-	UDim2.new(0, 12, 0.5, -180),
+	UDim2.new(0, 76, 0, 410),
+	UDim2.new(0, 12, 0.5, -205),
 	COLORS.background
 )
 buttonBar.BackgroundTransparency = 0.12
@@ -2191,6 +2431,7 @@ addHudButton(5, "Fight", "ATTACK", function()
 	invokeRemote(AttackEnemy)
 end, COLORS.red)
 addHudButton(6, "Shop", "SHOP", showPremiumShop, COLORS.panelLight)
+addHudButton(7, "Party", "PARTY", showParty, COLORS.panelLight)
 
 --========================================================
 -- STATE RENDERING
@@ -2268,6 +2509,8 @@ function renderState()
 		showDailyReward()
 	elseif currentMenu == "PremiumShop" then
 		showPremiumShop()
+	elseif currentMenu == "Party" then
+		showParty()
 	elseif currentMenu == "Quests" then
 		showQuests()
 	elseif currentMenu == "PetDetails" and currentPet then
@@ -2279,6 +2522,24 @@ end
 --========================================================
 -- SERVER NOTIFICATIONS
 --========================================================
+
+if PartyUpdate:IsA("RemoteEvent") then
+	PartyUpdate.OnClientEvent:Connect(function(kind, payload, invites)
+		if kind == "SYNC" then
+			partyState = type(payload) == "table" and payload or nil
+			partyInvites = type(invites) == "table" and invites or {}
+			if currentMenu == "Party" then
+				showParty()
+			end
+		elseif kind == "INVITE" then
+			local leaderName = tostring(invites or "A player")
+			showToast(leaderName .. " invited you to a party.", COLORS.accentLight)
+			if currentMenu == "Party" then
+				showParty()
+			end
+		end
+	end)
+end
 
 if StateChanged:IsA("RemoteEvent") then
 	StateChanged.OnClientEvent:Connect(function(newState)
