@@ -1708,7 +1708,7 @@ local function loadPlayer(player)
 
 	-- A player can disconnect while GetAsync is yielding. Do not create
 	-- runtime state or visuals for a player who has already left.
-	if player.Parent ~= Players then
+	if player.Parent ~= Players or leavingPlayers[player] then
 		loadingPlayers[player] = nil
 		return
 	end
@@ -1753,7 +1753,7 @@ local function refreshPassOwnership(player)
 		cache[passKey] = owns
 	end
 
-	if player.Parent ~= Players then
+	if player.Parent ~= Players or leavingPlayers[player] then
 		return
 	end
 
