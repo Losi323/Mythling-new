@@ -1,0 +1,32 @@
+MYTHLING REALMS — ABRIR NO ROBLOX STUDIO
+
+IMPORTANTE
+Você NÃO precisa criar os Scripts/LocalScripts um por um. O arquivo default.project.json
+já mapeia as pastas para os serviços correspondentes. O Rojo instala/sincroniza a estrutura
+inteira de uma vez.
+
+PRIMEIRO USO
+1. Baixe o ZIP da branch release/checklist-complete-build do GitHub e extraia.
+2. Instale o Rojo CLI e o plugin do Rojo para Roblox Studio usando a documentação oficial:
+   https://create.roblox.com/docs/projects/external-tools
+3. Entre na pasta MythlingRealms que contém default.project.json.
+4. Dê dois cliques em BUILD_MYTHLING.bat.
+5. Quando terminar, abra MythlingRealms.rbxlx no Roblox Studio.
+6. Confira View > Output antes de publicar. O arquivo é um ponto de partida montado pelo Rojo,
+   não uma publicação automática.
+
+ALTERNATIVA: SINCRONIZAR COM O STUDIO
+1. Execute START_ROJO_SYNC.bat e deixe a janela aberta.
+2. Abra no Roblox Studio um place de teste, abra o plugin Rojo e conecte ao servidor local.
+3. O Rojo mapeia os arquivos do projeto para os serviços. Confira o Explorer e Output.
+4. Salve/publice seu place de teste quando você decidir.
+
+DADOS E COMPRAS
+- DataStore exige experiência publicada/configurada e permissões de API apropriadas no ambiente de teste.
+- Game Passes e Developer Products estão desativados até você criar os produtos no Creator Dashboard
+  e substituir os IDs zero nos arquivos do servidor. Não há IDs ou preços inventados.
+
+LIMITAÇÃO HONESTA
+Os scripts e o projeto foram editados no GitHub e revisados estaticamente, mas esta branch não foi
+compilada/rodada em uma sessão real do Roblox Studio. O build .rbxlx é criado localmente quando
+você executa BUILD_MYTHLING.bat; ainda é necessário conferir Output e testar antes de publicar.
