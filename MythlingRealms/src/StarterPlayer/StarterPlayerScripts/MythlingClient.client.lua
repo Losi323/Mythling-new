@@ -1462,10 +1462,10 @@ local function showDailyReward()
 	}
 	local wheelPositions = {
 		UDim2.new(0.5, -31, 0, 10),
-		UDim2.new(1, -72, 0.5, -18),
-		UDim2.new(0.5, -31, 1, -46),
-		UDim2.new(0, 7, 0.5, -18),
-		UDim2.new(0.5, -31, 0.5, -18),
+		UDim2.new(1, -72, 0.29, 0),
+		UDim2.new(0.65, -31, 1, -46),
+		UDim2.new(0.35, -31, 1, -46),
+		UDim2.new(0, 8, 0.29, 0),
 	}
 	local wheelColors = {
 		Color3.fromRGB(74, 151, 255),
@@ -1826,6 +1826,42 @@ local currencyLabel = newLabel(
 )
 currencyLabel.Font = Enum.Font.GothamBold
 currencyLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+local eventBanner = newFrame(
+	hud,
+	"ActiveEventBanner",
+	UDim2.new(0, 390, 0, 44),
+	UDim2.new(0.5, -195, 0, 12),
+	COLORS.background
+)
+eventBanner.BackgroundTransparency = 0.08
+stroke(eventBanner, COLORS.accentLight, 1)
+
+local eventBannerLabel = newLabel(
+	eventBanner,
+	"EVENT: LOADING...",
+	UDim2.new(1, -12, 1, -6),
+	UDim2.new(0, 6, 0, 3),
+	11,
+	COLORS.text
+)
+eventBannerLabel.Font = Enum.Font.GothamBold
+eventBannerLabel.TextXAlignment = Enum.TextXAlignment.Center
+eventBannerLabel.TextWrapped = true
+
+local function updateEventBanner()
+	local eventInfo = currentState.activeEvent
+	if type(eventInfo) ~= "table" then
+		eventBannerLabel.Text = "EVENT: LOADING..."
+		return
+	end
+
+	local secondsRemaining = math.max(0, (tonumber(eventInfo.endsAt) or os.time()) - os.time())
+	local minutesRemaining = math.ceil(secondsRemaining / 60)
+	eventBannerLabel.Text = string.upper(tostring(eventInfo.name or "WORLD EVENT"))
+		.. " · " .. tostring(eventInfo.description or "")
+		.. " (" .. minutesRemaining .. "m)"
+end
 --========================================================
 -- EQUIPPED MYTHLING STATUS PANEL
 --========================================================
@@ -2021,6 +2057,7 @@ end, COLORS.red)
 
 function renderState()
 	currencyLabel.Text = "STARSHARDS: " .. formatNumber(getCurrency())
+	updateEventBanner()
 
 	local equipped = getEquippedPet()
 	if type(equipped) ~= "string" then
@@ -2111,6 +2148,39 @@ if StateChanged:IsA("RemoteEvent") then
 	end)
 end
 
+if WheelResult:IsA("RemoteEvent") then
+	WheelResult.OnClientEvent:Connect(function(rewardIndex, rewardAmount)
+		local index = math.clamp(math.floor(tonumber(rewardIndex) or 1), 1, 5)
+		local amount = math.max(0, math.floor(tonumber(rewardAmount) or 0))
+		local thisVisual = wheelVisual
+
+		wheelSpinAttempt += 1
+		wheelBusy = false
+		if wheelButton and wheelButton.Parent then
+			wheelButton.Text = "COME BACK TOMORROW"
+			wheelButton.Active = false
+			wheelButton.AutoButtonColor = false
+		end
+
+		if thisVisual and thisVisual.Parent then
+			local targetRotation = thisVisual.Rotation + 1440 + ((5 - index) * 72)
+			local tween = TweenService:Create(
+				thisVisual,
+				TweenInfo.new(3.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+				{ Rotation = targetRotation }
+			)
+			tween:Play()
+			tween.Completed:Wait()
+		end
+
+		showToast("Daily Wheel: +" .. formatNumber(amount) .. " Starshards!", COLORS.gold)
+		requestState()
+		if currentMenu == "DailyReward" then
+			showDailyReward()
+		end
+	end)
+end
+
 if Notify:IsA("RemoteEvent") then
 	Notify.OnClientEvent:Connect(function(message, ...)
 		if type(message) ~= "string" then
@@ -2182,5 +2252,18 @@ else
 	warn("[MythlingRealms] Initial state could not be loaded.")
 	showToast("Couldn't load your data. Please rejoin.", COLORS.red)
 end
+
+-- Refresh rotating global event metadata without rebuilding whichever menu
+-- the player is currently using.
+task.spawn(function()
+	while gui.Parent and player.Parent do
+		task.wait(60)
+		if gui.Parent and player.Parent then
+			if requestState() then
+				updateEventBanner()
+			end
+		end
+	end
+end)
 
 print("[MythlingRealms] Compact client UI initialized.")
