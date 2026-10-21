@@ -2007,7 +2007,13 @@ local function createPetVisual(player)
 	)
 
 	-- Ears differ by species so the pets do not all look identical.
-	if data.pet == "Mossbun" then
+	if data.pet == "AuroraStag" then
+		local antlerColor = Color3.fromRGB(255, 225, 136)
+		makePetPiece(model, "LeftAntlerStem", "Wedge", Vector3.new(0.22, 0.78, 0.20), Vector3.new(-0.48, 1.58, -0.30), antlerColor, Enum.Material.Neon)
+		makePetPiece(model, "LeftAntlerBranch", "Wedge", Vector3.new(0.18, 0.52, 0.18), Vector3.new(-0.69, 1.84, -0.30), antlerColor, Enum.Material.Neon)
+		makePetPiece(model, "RightAntlerStem", "Wedge", Vector3.new(0.22, 0.78, 0.20), Vector3.new(0.48, 1.58, -0.30), antlerColor, Enum.Material.Neon)
+		makePetPiece(model, "RightAntlerBranch", "Wedge", Vector3.new(0.18, 0.52, 0.18), Vector3.new(0.69, 1.84, -0.30), antlerColor, Enum.Material.Neon)
+	elseif data.pet == "Mossbun" then
 		makePetPiece(model, "LeftEar", "Ball", Vector3.new(0.38, 1.0, 0.35), Vector3.new(-0.42, 1.55, -0.36), baseColor)
 		makePetPiece(model, "RightEar", "Ball", Vector3.new(0.38, 1.0, 0.35), Vector3.new(0.42, 1.55, -0.36), baseColor)
 		makePetPiece(model, "LeftInnerEar", "Ball", Vector3.new(0.15, 0.64, 0.12), Vector3.new(-0.42, 1.57, -0.53), cream)
@@ -2078,6 +2084,9 @@ local function createPetVisual(player)
 	elseif data.pet == "Starwhisp" then
 		makePetPiece(model, "StarOrbLeft", "Ball", Vector3.new(0.3, 0.3, 0.3), Vector3.new(-0.95, 1.0, -0.1), Color3.fromRGB(255, 225, 115), Enum.Material.Neon)
 		makePetPiece(model, "StarOrbRight", "Ball", Vector3.new(0.22, 0.22, 0.22), Vector3.new(0.95, 0.35, -0.1), Color3.fromRGB(255, 225, 115), Enum.Material.Neon)
+	elseif data.pet == "AuroraStag" then
+		makePetPiece(model, "AuroraForeheadCrystal", "Ball", Vector3.new(0.30, 0.30, 0.16), Vector3.new(0, 1.12, -1.13), Color3.fromRGB(182, 255, 244), Enum.Material.Neon)
+		makePetPiece(model, "AuroraTail", "Ball", Vector3.new(0.46, 0.46, 0.42), Vector3.new(0, 0.08, 0.90), Color3.fromRGB(182, 255, 244), Enum.Material.Neon)
 	elseif data.pet == "Sunpup" then
 		makePetPiece(model, "SunMark", "Ball", Vector3.new(0.28, 0.28, 0.1), Vector3.new(0, 0.92, -1.07), Color3.fromRGB(255, 232, 125), Enum.Material.Neon)
 	end
