@@ -1537,7 +1537,7 @@ AttackEnemy.OnServerEvent:Connect(function(player)
 			message ..= " Your Mythling leveled up!"
 		end
 		notify(contributor, message)
-		task.spawn(savePlayer, contributor)
+		scheduleSave(contributor, 10)
 	end
 
 	task.delay(12, function()
