@@ -2610,9 +2610,17 @@ vaultRewardRequest.OnInvoke = function(player)
 	data.vaultClaimed = 1
 	local reward = 500
 	data.starshards += reward
+
+	-- This is a one-time reward, so attempt persistence before telling the
+	-- puzzle script that the claim is complete. If DataStore is temporarily
+	-- unavailable, keep the claim protected in session memory and retry sooner.
+	local saved = savePlayer(player)
 	pushState(player)
+	if not saved then
+		scheduleSave(player, 3)
+		warn("[MythlingRealms] Forgotten Vault reward was granted in-session; persistence will be retried for " .. player.Name)
+	end
 	notify(player, "Forgotten Vault opened! +" .. reward .. " Starshards.")
-	scheduleSave(player, 10)
 	return true, reward
 end
 
