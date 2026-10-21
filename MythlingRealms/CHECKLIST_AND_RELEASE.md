@@ -33,6 +33,7 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 - [x] Incrementar o contador persistente de ovos abertos.
 - [x] Manter o resultado autoritativo no servidor e a animação no cliente.
 - [x] Remover a notificação genérica duplicada de sucesso.
+- [x] Limpar a animação/resultado anterior quando uma nova abertura de ovo chega, evitando overlays e cartões presos ou empilhados.
 - [ ] Testar resultado, animação, saldo insuficiente e salvamento da coleção no Studio.
 
 ## Fase 5 — Missões e campanha
