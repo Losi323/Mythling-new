@@ -1531,17 +1531,34 @@ local function savePlayer(player)
 	syncEquippedPetData(data)
 	local snapshot = cloneData(data)
 
-	local success, err = pcall(function()
-		store:UpdateAsync("player_" .. player.UserId, function()
-			return snapshot
+	local success = false
+	local err = nil
+	for attempt = 1, 3 do
+		success, err = pcall(function()
+			store:UpdateAsync("player_" .. player.UserId, function()
+				return snapshot
+			end)
 		end)
-	end)
+
+		if success then
+			break
+		end
+
+		if attempt < 3 then
+			warn(
+				"[MythlingRealms] Save attempt "
+					.. attempt .. " failed for " .. player.Name
+					.. "; retrying: " .. tostring(err)
+			)
+			task.wait(attempt * 0.75)
+		end
+	end
 
 	savingPlayers[player] = nil
 
 	if not success then
 		warn(
-			"[MythlingRealms] Save failed for "
+			"[MythlingRealms] Save failed after 3 attempts for "
 				.. player.Name
 				.. ": "
 				.. tostring(err)
