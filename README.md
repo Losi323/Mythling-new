@@ -24,7 +24,7 @@ Mythling Realms is a Roblox collection-and-progression game project built with L
 - MythlingRealms/src/StarterPlayer/StarterPlayerScripts/MythlingClient.client.lua — menus, inventory, egg reveal, daily wheel, event banner, and HUD.
 - MythlingRealms/src/Workspace/MythlingMap/ForgottenRuins/VaultPuzzle/VaultPuzzleScript.server.lua — rune puzzle, island geometry, and server-only reward handoff.
 - MythlingRealms/CHECKLIST_AND_RELEASE.md — implementation/release checklist, including work that needs Roblox Studio.
-- MythlingRealms/MONETIZATION_SETUP.md — how to configure the real Game Pass IDs.
+- MythlingRealms/MONETIZATION_SETUP.md — how to configure real Game Pass and Developer Product IDs, prices, and receipt handling.
 
 ## Opening the project
 
