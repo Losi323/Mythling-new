@@ -1479,12 +1479,14 @@ local function showDailyReward()
 		{amount = 1000, weight = 10},
 		{amount = 2500, weight = 2},
 	}
+	-- Five prize markers are evenly spaced around a circle. The result
+	-- animation rotates the server-selected marker under the top pointer.
 	local wheelPositions = {
-		UDim2.new(0.5, -31, 0, 10),
-		UDim2.new(1, -72, 0.29, 0),
-		UDim2.new(0.65, -31, 1, -46),
-		UDim2.new(0.35, -31, 1, -46),
-		UDim2.new(0, 8, 0.29, 0),
+		UDim2.fromOffset(74, 20),
+		UDim2.fromOffset(139, 67),
+		UDim2.fromOffset(114, 143),
+		UDim2.fromOffset(34, 143),
+		UDim2.fromOffset(9, 67),
 	}
 	local wheelColors = {
 		Color3.fromRGB(74, 151, 255),
