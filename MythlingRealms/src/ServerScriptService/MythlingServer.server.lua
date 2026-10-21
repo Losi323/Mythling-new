@@ -1311,7 +1311,8 @@ AttackEnemy.OnServerEvent:Connect(function(player)
 	end
 
 	local enemyName = targetState.name
-	local reward = targetState.reward
+	local baseReward = targetState.reward
+	local reward = baseReward
 	local spawnPosition = targetState.spawnPosition
 	local worldName = targetState.worldName
 	local maxHealth = targetState.maxHealth
@@ -1320,17 +1321,15 @@ AttackEnemy.OnServerEvent:Connect(function(player)
 	enemyStates[target] = nil
 	target:Destroy()
 
+	local activeEvent = getActiveEvent()
+	if activeEvent.id == "CREATURE_HUNT" then
+		reward = math.floor(baseReward * 1.5)
+	end
+
 	data.enemiesDefeated = (data.enemiesDefeated or 0) + 1
 	data.starshards += reward
 	local leveledUp = grantCombatXP(data, 40)
 	pushState(player)
-
-	local activeEvent = getActiveEvent()
-	if activeEvent.id == "CREATURE_HUNT" then
-		reward = math.floor(reward * 1.5)
-		-- Combat event bonus is applied before the actual award.
-		data.starshards += reward - targetState.reward
-	end
 
 	local message = "Defeated " .. enemyName .. "! +" .. reward .. " Starshards."
 	if leveledUp then
@@ -1341,7 +1340,8 @@ AttackEnemy.OnServerEvent:Connect(function(player)
 
 	task.delay(12, function()
 		if enemyFolder.Parent then
-			createEnemy(enemyName, worldName, spawnPosition, maxHealth, reward, color)
+			-- Respawn from the base reward so an event bonus never compounds.
+			createEnemy(enemyName, worldName, spawnPosition, maxHealth, baseReward, color)
 		end
 	end)
 end)
