@@ -378,8 +378,6 @@ for _, rune in ipairs(runes) do
 		end
 
 		playerRunes[rune.Name] = true
-		rune.Color = Color3.fromRGB(120, 255, 210)
-		rune.Material = Enum.Material.Neon
 
 		local count = 0
 		for _, currentRune in ipairs(runes) do
@@ -390,6 +388,10 @@ for _, rune in ipairs(runes) do
 
 		if count >= #runes then
 			solvedByUserId[userId] = true
+			for _, solvedRune in ipairs(runes) do
+				solvedRune.Color = Color3.fromRGB(120, 255, 210)
+				solvedRune.Material = Enum.Material.Neon
+			end
 			setDoorOpen()
 			notifyPlayer(player, "The three runes resonate! The vault is open.")
 		else
