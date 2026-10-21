@@ -379,6 +379,10 @@ local savingPlayers = {}
 local gamePassCache = {}
 local leavingPlayers = {}
 
+-- Forward declaration: combat handlers appear before the save/load section
+-- but still need to schedule a persistence attempt after awarding co-op rewards.
+local savePlayer
+
 local function defaultData()
 	return {
 		schemaVersion = 4,
@@ -1706,7 +1710,7 @@ end)
 -- SAVE / LOAD
 --==================================================
 
-local function savePlayer(player)
+savePlayer = function(player)
 	local data = playerData[player]
 	if not data then
 		return false
