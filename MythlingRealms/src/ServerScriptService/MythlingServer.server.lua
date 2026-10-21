@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local DataStoreService = game:GetService("DataStoreService")
+local MarketplaceService = game:GetService("MarketplaceService")
 local RunService = game:GetService("RunService")
 
 local DATASTORE_NAME = "MythlingRealms_PlayerData_v1"
@@ -16,6 +17,13 @@ local EGG_COST = 250
 local WORLD_UNLOCK_COST = 1000
 local EVOLUTION_COST = 500
 local MAX_PET_LEVEL = 50
+
+-- Configure these with real Game Pass IDs after creating the passes in Creator
+-- Dashboard. Zero means disabled; never ship example or invented IDs.
+local GAMEPASS_IDS = {
+	DoubleStarshards = 0,
+	VIPCompanion = 0,
+}
 
 local store = DataStoreService:GetDataStore(DATASTORE_NAME)
 
@@ -163,6 +171,14 @@ local PETS = {
 		rarity = "Legendary",
 		color = Color3.fromRGB(220, 160, 255),
 		description = "A legendary spirit born from starlight.",
+	},
+
+	AuroraStag = {
+		displayName = "Aurora Stag",
+		element = "Astral",
+		rarity = "VIP",
+		color = Color3.fromRGB(120, 240, 226),
+		description = "An exclusive companion for VIP supporters.",
 	},
 }
 
@@ -333,6 +349,8 @@ local loadingPlayers = {}
 local petVisuals = {}
 local lastRequest = {}
 local savingPlayers = {}
+local gamePassCache = {}
+local leavingPlayers = {}
 
 local function defaultData()
 	return {
