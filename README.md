@@ -10,6 +10,7 @@ Mythling Realms is a Roblox collection-and-progression game project built with L
 - Starfall Haven and Emberfall, with server-validated portals and collection access.
 - Server-authoritative creature pursuit and combat, visible health, XP and Starshard rewards, co-op contribution sharing, and respawns.
 - A third Forgotten Ruins island with a three-rune vault puzzle and one-time persisted reward.
+- World-specific visual decoration, glowing portals, floating crystals, light crystal glows, and combat damage feedback.
 - Daily login reward streaks, a daily Starshard wheel, and rotating hourly global events.
 - Server-authoritative four-player parties with timed invitations, accept/decline, leave/disband handling, and cleanup on disconnect.
 - Optional Game Pass support for 2x Starshards and the VIP Aurora Stag companion, plus three Developer Product Starshard packs with idempotent receipt handling. All purchase IDs are intentionally zero until real products are created.
