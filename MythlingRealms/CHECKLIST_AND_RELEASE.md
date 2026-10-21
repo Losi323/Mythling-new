@@ -71,8 +71,9 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 - [x] Tabelas de classificação do jogador existentes para moeda/nível.
 - [x] Recompensas de combate compartilhadas proporcionalmente entre contribuidores próximos; leaderstats incluem cristais e criaturas derrotadas.
 - [x] Contribuições e salvamentos de combate são agregados para evitar rajadas desnecessárias ao DataStore.
-- [ ] Testar dois ou mais jogadores disputando a mesma criatura/cristal.
-- [ ] Sistema de grupos, trocas e presentes não implementado nesta entrega; definir regras anti-fraude antes de adicionar.
+- [x] Sistema de grupo com até 4 jogadores, convites, aceitar/recusar, sair, expiração de convite e limpeza ao desconectar.
+- [ ] Testar dois ou mais jogadores disputando a mesma criatura/cristal e entrando/saindo de grupos.
+- [ ] Troca direta de mascotes e presentes não implementados; exigem inventário transacional e regras anti-fraude para evitar duplicação/perda.
 
 ## Fase 10 — Monetização transparente
 - [x] Loja opcional com suporte a Game Pass de 2x Starshards e Game Pass VIP Aurora Stag.
