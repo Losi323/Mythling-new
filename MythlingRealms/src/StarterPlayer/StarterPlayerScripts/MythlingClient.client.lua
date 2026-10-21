@@ -1565,9 +1565,10 @@ local function showDailyReward()
 				if wheelBusy and wheelSpinAttempt == thisAttempt then
 					wheelBusy = false
 					if wheelButton and wheelButton.Parent then
-						wheelButton.Text = "SPIN THE WHEEL"
-						wheelButton.Active = true
-						wheelButton.AutoButtonColor = true
+						local available = currentState.dailyWheelAvailable == true
+						wheelButton.Text = available and "SPIN THE WHEEL" or "COME BACK TOMORROW"
+						wheelButton.Active = available
+						wheelButton.AutoButtonColor = available
 					end
 					showToast("The wheel did not respond. Please refresh your state.", COLORS.red)
 				end
