@@ -27,7 +27,6 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 ## Fase 4 — Ovos e probabilidades
 - [x] Validar no servidor que os pesos dos ovos somam 100 e correspondem às raridades exibidas.
 - [x] Fazer a loja ler as probabilidades do estado do servidor.
-- [x] Mostrar os requisitos de evolução e desbloqueio de Emberfall no menu, desativando ações quando não podem ser concluídas.
 - [x] Incrementar o contador persistente de ovos abertos.
 - [x] Manter o resultado autoritativo no servidor e a animação no cliente.
 - [x] Remover a notificação genérica duplicada de sucesso.
@@ -59,6 +58,7 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 - [x] Distinguir visualmente Starfall Haven e Emberfall com floresta, portais iluminados, pináculos de basalto e fissuras de lava.
 - [x] Verificar desbloqueio de Emberfall no servidor tanto no portal quanto na coleta/combate.
 - [x] Recompensas de cristais específicas por mundo.
+- [x] Mostrar os requisitos de evolução e desbloqueio de Emberfall no menu, desativando ações quando não podem ser concluídas.
 - [ ] Fazer walkthrough de todas as rotas e verificar visualmente as colisões e os pontos de surgimento.
 
 ## Fase 8 — Eventos e roleta
