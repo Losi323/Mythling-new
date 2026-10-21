@@ -854,6 +854,20 @@ local function actionAllowed(player, actionName, cooldown)
 	return true
 end
 
+-- Coalesce frequent crystal pickups into at most one delayed save per player.
+-- PlayerRemoving still performs its own immediate final save.
+local saveDebounceScheduled = {}
+local function scheduleSave(player, delaySeconds)
+	if saveDebounceScheduled[player] then return end
+	saveDebounceScheduled[player] = true
+	task.delay(delaySeconds or 15, function()
+		saveDebounceScheduled[player] = nil
+		if playerData[player] and not leavingPlayers[player] then
+			task.spawn(savePlayer, player)
+		end
+	end)
+end
+
 --==================================================
 -- MAP
 --==================================================
@@ -1195,8 +1209,9 @@ local function makeCrystal(index, position, worldName)
 
 		pushState(player)
 		notify(player, "+" .. reward .. " Starshards!")
+		scheduleSave(player, 15)
 
-		task.delay(CRYSTAL_RESPAWN_SECONDS, function()
+		task.delay(CRYSTAL_RESPAWN_SECONDS, function() {
 			if crystal.Parent then
 				crystal.Transparency = 0
 				prompt.Enabled = true
