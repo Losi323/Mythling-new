@@ -26,13 +26,17 @@ Mythling Realms is a Roblox collection-and-progression game project built with L
 - MythlingRealms/CHECKLIST_AND_RELEASE.md — implementation/release checklist, including work that needs Roblox Studio.
 - MythlingRealms/MONETIZATION_SETUP.md — how to configure real Game Pass and Developer Product IDs, prices, and receipt handling.
 
-## Opening the project
+## Opening the project — no script-by-script setup
 
-1. Clone or download this repository.
-2. Open the MythlingRealms directory as a Rojo project using default.project.json.
-3. Sync the project to a Roblox Studio place using the Rojo plugin.
-4. Publish a private test place and enable Studio access to API services before testing DataStore behavior.
-5. Open Output and check for runtime errors. Follow the outstanding items in MythlingRealms/CHECKLIST_AND_RELEASE.md.
+1. Download the ZIP for branch release/checklist-complete-build and extract it.
+2. Install the Rojo CLI and Studio plugin using the official guide: https://create.roblox.com/docs/projects/external-tools
+3. Open the MythlingRealms folder.
+4. Double-click BUILD_MYTHLING.bat. It runs Rojo to build MythlingRealms.rbxlx from default.project.json.
+5. Open MythlingRealms.rbxlx in Roblox Studio. The project mapping places the server, client, and Workspace files into their intended services.
+6. Alternatively, run START_ROJO_SYNC.bat, then connect the Rojo plugin in Studio to sync the project live.
+7. Check View > Output and follow MythlingRealms/CHECKLIST_AND_RELEASE.md before publishing.
+
+The .bat files must be run from Windows/File Explorer, not typed into Studio. They assemble/sync the project automatically; they do not publish the experience or replace the required runtime checks..
 
 ## Important configuration
 
