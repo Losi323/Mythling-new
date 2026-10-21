@@ -83,6 +83,8 @@ local currentMenu = nil
 local currentPet = nil
 local toastId = 0
 local hatchId = 0
+local activeHatchSuspense = nil
+local activeHatchResult = nil
 local busy = false
 local wheelBusy = false
 local wheelSpinAttempt = 0
@@ -859,6 +861,18 @@ end
 local function showEggResult(petName, rarity)
 	hatchId += 1
 	local thisHatch = hatchId
+
+	-- A new hatch replaces the previous visual instead of leaving an
+	-- abandoned suspense overlay or stacking result cards on the screen.
+	if activeHatchSuspense and activeHatchSuspense.Parent then
+		activeHatchSuspense:Destroy()
+	end
+	activeHatchSuspense = nil
+	if activeHatchResult and activeHatchResult.Parent then
+		activeHatchResult:Destroy()
+	end
+	activeHatchResult = nil
+
 	rarity = rarity or getPetRarity(petName)
 	local rarityColor = getRarityColor(rarity)
 
@@ -873,6 +887,7 @@ local function showEggResult(petName, rarity)
 	suspense.BorderSizePixel = 0
 	suspense.ZIndex = 80
 	suspense.Parent = gui
+	activeHatchSuspense = suspense
 
 	local panel = newFrame(
 		suspense,
@@ -1091,6 +1106,9 @@ local function showEggResult(petName, rarity)
 		):Play()
 
 		suspense:Destroy()
+		if activeHatchSuspense == suspense then
+			activeHatchSuspense = nil
+		end
 		task.delay(0.3, function()
 			if flash.Parent then
 				flash:Destroy()
@@ -1109,6 +1127,7 @@ local function showEggResult(petName, rarity)
 			UDim2.new(0.5, 0, 0.5, 0),
 			COLORS.background
 		)
+		activeHatchResult = result
 		result.AnchorPoint = Vector2.new(0.5, 0.5)
 		result.ZIndex = 90
 		stroke(result, rarityColor, rarity == "Legendary" and 4 or 2)
