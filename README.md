@@ -9,7 +9,7 @@ Mythling Realms is a Roblox collection-and-progression game project built with L
 - Multi-stage progression quests covering crystal collection, Emberfall, the Forgotten Ruins vault, creature battles, egg openings, and levels.
 - Starfall Haven and Emberfall, with server-validated portals and collection access.
 - Server-authoritative creature pursuit and combat, visible health, XP and Starshard rewards, co-op contribution sharing, and respawns.
-- A third Forgotten Ruins island with a three-rune vault puzzle and one-time persisted reward.
+- A third Forgotten Ruins island with a lit, signed bridge, a three-rune vault puzzle, and a one-time persisted reward.
 - World-specific visual decoration, glowing portals, floating crystals, light crystal glows, and combat damage feedback.
 - Daily login reward streaks, a daily Starshard wheel, and rotating hourly global events.
 - Server-authoritative four-player parties with timed invitations, accept/decline, leave/disband handling, and cleanup on disconnect.
