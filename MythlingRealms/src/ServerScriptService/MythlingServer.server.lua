@@ -1485,7 +1485,7 @@ end)
 -- CLAIM QUEST
 --==================================================
 
-ClaimQuest.OnServerEvent:Connect(function(player)
+ClaimQuest.OnServerEvent:Connect(function(player, requestedQuestTitle)
 	local data = playerData[player]
 	if not data then return end
 
@@ -1499,6 +1499,15 @@ ClaimQuest.OnServerEvent:Connect(function(player)
 
 	if not quest then
 		notify(player, "All starter quests are completed!")
+		return
+	end
+
+	-- The client may send the displayed title. Validate it against the
+	-- server's current quest so a stale UI cannot claim another objective.
+	if requestedQuestTitle ~= nil
+		and requestedQuestTitle ~= quest.title then
+		pushState(player)
+		notify(player, "Your active quest changed. The quest list was refreshed.")
 		return
 	end
 
