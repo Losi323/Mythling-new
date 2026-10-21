@@ -27,6 +27,7 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 ## Fase 4 — Ovos e probabilidades
 - [x] Validar no servidor que os pesos dos ovos somam 100 e correspondem às raridades exibidas.
 - [x] Fazer a loja ler as probabilidades do estado do servidor.
+- [x] Mostrar os requisitos de evolução e desbloqueio de Emberfall no menu, desativando ações quando não podem ser concluídas.
 - [x] Incrementar o contador persistente de ovos abertos.
 - [x] Manter o resultado autoritativo no servidor e a animação no cliente.
 - [x] Remover a notificação genérica duplicada de sucesso.
@@ -110,6 +111,7 @@ Este arquivo separa **implementação no código** de **verificação em execuç
 
 ## Notas técnicas
 - Os scripts foram revisados estaticamente, incluindo uma verificação de equilíbrio de delimitadores/blocos, mas **não foram compilados nem executados no Roblox Studio neste ambiente**.
+- O bloqueio de salvamento para reconexão é local ao servidor; não implementa lease/lock distribuído entre servidores diferentes.
 - A configuração comercial permanece pendente: todos os IDs de compra são zero até serem criados no Creator Dashboard.
 - Os sistemas de eventos, roleta, recompensas e combate usam recompensas definidas no servidor; a interface é apenas visual.
 - A versão principal `main` é preservada até a revisão do PR consolidado.
