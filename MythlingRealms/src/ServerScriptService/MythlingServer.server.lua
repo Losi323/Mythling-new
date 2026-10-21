@@ -1570,12 +1570,14 @@ local function makeCrystal(index, position, worldName)
 			+ math.min(data.petLevel * 2, 30)
 			+ (data.petEvolved and 5 or 0)
 		local activeEvent = getActiveEvent()
+		local rewardMultiplier = 1
 		if activeEvent.id == "CRYSTAL_RUSH" then
-			reward = math.floor(reward * 1.5)
+			rewardMultiplier *= 1.5
 		end
 		if hasGamePass(player, "DoubleStarshards") then
-			reward *= 2
+			rewardMultiplier *= 2
 		end
+		reward = math.floor(reward * rewardMultiplier)
 		data.starshards += reward
 		data.totalCollected += 1
 
@@ -1968,12 +1970,11 @@ AttackEnemy.OnServerEvent:Connect(function(player)
 		local contributor = participant.player
 		local contributorData = participant.data
 		local reward = participant.baseShare
-		if activeEvent.id == "CREATURE_HUNT" then
-			reward = math.floor(reward * 1.5)
-		end
+		local rewardMultiplier = activeEvent.id == "CREATURE_HUNT" and 1.5 or 1
 		if hasGamePass(contributor, "DoubleStarshards") then
-			reward *= 2
+			rewardMultiplier *= 2
 		end
+		reward = math.floor(reward * rewardMultiplier)
 
 		contributorData.enemiesDefeated = (contributorData.enemiesDefeated or 0) + 1
 		contributorData.starshards += reward
