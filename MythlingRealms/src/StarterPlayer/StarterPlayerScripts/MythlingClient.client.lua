@@ -1995,8 +1995,11 @@ local function updateEventBanner()
 
 	local secondsRemaining = math.max(0, (tonumber(eventInfo.endsAt) or os.time()) - os.time())
 	local minutesRemaining = math.ceil(secondsRemaining / 60)
+	local compactDescription = eventInfo.id == "CRYSTAL_RUSH"
+		and "+50% crystal rewards"
+		or "+50% creature rewards"
 	eventBannerLabel.Text = string.upper(tostring(eventInfo.name or "WORLD EVENT"))
-		.. " · " .. tostring(eventInfo.description or "")
+		.. " · " .. compactDescription
 		.. " (" .. minutesRemaining .. "m)"
 end
 --========================================================
