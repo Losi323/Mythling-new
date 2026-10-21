@@ -607,7 +607,33 @@ local function getUpgradeCost(level)
 	return math.floor(50 * (level ^ 1.15))
 end
 
-local function stateForClient(data)
+local function hasGamePass(player, passKey)
+	local cache = gamePassCache[player]
+	return cache ~= nil and cache[passKey] == true
+end
+
+local function gamePassStateForClient(player)
+	return {
+		{
+			key = "DoubleStarshards",
+			name = "2x Starshards",
+			description = "Earn double Starshards from crystals and creature battles.",
+			passId = GAMEPASS_IDS.DoubleStarshards,
+			configured = GAMEPASS_IDS.DoubleStarshards > 0,
+			owned = hasGamePass(player, "DoubleStarshards"),
+		},
+		{
+			key = "VIPCompanion",
+			name = "VIP Aurora Stag",
+			description = "Unlock the exclusive Aurora Stag Mythling.",
+			passId = GAMEPASS_IDS.VIPCompanion,
+			configured = GAMEPASS_IDS.VIPCompanion > 0,
+			owned = hasGamePass(player, "VIPCompanion"),
+		},
+	}
+end
+
+local function stateForClient(data, player)
 	syncEquippedPetData(data)
 
 	local activeEvent = getActiveEvent()
@@ -664,6 +690,7 @@ local function stateForClient(data)
 
 		eggCost = EGG_COST,
 		eggOdds = EGG_ODDS,
+		gamePasses = gamePassStateForClient(player),
 
 		enemiesDefeated = data.enemiesDefeated or 0,
 		emberfallCollected = data.emberfallCollected or 0,
@@ -754,7 +781,7 @@ local function pushState(player)
 	syncEquippedPetData(data)
 	updateLeaderstats(player)
 
-	StateChanged:FireClient(player, stateForClient(data))
+	StateChanged:FireClient(player, stateForClient(data, player))
 end
 
 local function notify(player, message)
@@ -764,6 +791,10 @@ local function notify(player, message)
 end
 
 local function actionAllowed(player, actionName, cooldown)
+	if leavingPlayers[player] or player.Parent ~= Players then
+		return false
+	end
+
 	local key = tostring(player.UserId) .. "_" .. actionName
 	local now = os.clock()
 
@@ -1075,6 +1106,9 @@ local function makeCrystal(index, position, worldName)
 		if activeEvent.id == "CRYSTAL_RUSH" then
 			reward = math.floor(reward * 1.5)
 		end
+		if hasGamePass(player, "DoubleStarshards") then
+			reward *= 2
+		end
 		data.starshards += reward
 		data.totalCollected += 1
 
@@ -1342,6 +1376,9 @@ AttackEnemy.OnServerEvent:Connect(function(player)
 	local activeEvent = getActiveEvent()
 	if activeEvent.id == "CREATURE_HUNT" then
 		reward = math.floor(baseReward * 1.5)
+	end
+	if hasGamePass(player, "DoubleStarshards") then
+		reward *= 2
 	end
 
 	data.enemiesDefeated = (data.enemiesDefeated or 0) + 1
@@ -1715,7 +1752,7 @@ GetState.OnServerInvoke = function(player)
 		return nil
 	end
 
-	return stateForClient(data)
+	return stateForClient(data, player)
 end
 
 --==================================================
