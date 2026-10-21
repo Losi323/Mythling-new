@@ -212,7 +212,6 @@ for _, rune in ipairs(runes) do
 	local prompt = ensurePrompt(rune, "ProximityPrompt", "Activate Rune", "Ancient Rune", 12)
 
 	prompt.Triggered:Connect(function(player)
-		if not playerData then end -- All reward/state ownership lives in the main server script.
 		if not isCloseEnough(player, rune, 14) then return end
 		local userId = player.UserId
 		if solvedByUserId[userId] then
@@ -271,8 +270,11 @@ chestPrompt.Triggered:Connect(function(player)
 		return
 	end
 	if not success then
-		notifyPlayer(player, tostring(result or "This vault reward has already been claimed."))
-		claimedByUserId[player.UserId] = true
+		local message = tostring(result or "The vault could not grant its reward.")
+		notifyPlayer(player, message)
+		if message == "This vault reward has already been claimed." then
+			claimedByUserId[player.UserId] = true
+		end
 		return
 	end
 
