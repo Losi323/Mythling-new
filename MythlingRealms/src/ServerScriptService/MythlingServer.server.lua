@@ -1714,6 +1714,10 @@ local function makeCrystal(index, position, worldName)
 		busy = true
 		prompt.Enabled = false
 		crystal.Transparency = 1
+		local crystalLight = crystal:FindFirstChild("CrystalGlow")
+		if crystalLight and crystalLight:IsA("PointLight") then
+			crystalLight.Enabled = false
+		end
 
 		syncEquippedPetData(data)
 
@@ -1775,6 +1779,9 @@ local function makeCrystal(index, position, worldName)
 			if crystal.Parent then
 				crystal.Transparency = 0
 				prompt.Enabled = true
+				if crystalLight and crystalLight.Parent then
+					crystalLight.Enabled = true
+				end
 			end
 
 			busy = false
