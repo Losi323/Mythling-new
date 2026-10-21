@@ -166,14 +166,18 @@ for index, x in ipairs({390, 420, 450, 480}) do
 		lantern.Shape = Enum.PartType.Ball
 		lantern.CanCollide = false
 
-		local glow = lantern:FindFirstChild("BridgeGlow")
-		if not glow then
-			glow = Instance.new("PointLight")
-			glow.Name = "BridgeGlow"
-			glow.Range = 9
-			glow.Brightness = 0.6
-			glow.Color = lantern.Color
-			glow.Parent = lantern
+		-- Neon lanterns remain visible on every post, but only a few carry
+		-- dynamic lights to avoid an unnecessarily high mobile lighting cost.
+		if index % 2 == 1 and side == 1 then
+			local glow = lantern:FindFirstChild("BridgeGlow")
+			if not glow then
+				glow = Instance.new("PointLight")
+				glow.Name = "BridgeGlow"
+				glow.Range = 9
+				glow.Brightness = 0.6
+				glow.Color = lantern.Color
+				glow.Parent = lantern
+			end
 		end
 	end
 end
