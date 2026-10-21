@@ -1298,6 +1298,13 @@ local function loadPlayer(player)
 		return
 	end
 
+	-- A player can disconnect while GetAsync is yielding. Do not create
+	-- runtime state or visuals for a player who has already left.
+	if player.Parent ~= Players then
+		loadingPlayers[player] = nil
+		return
+	end
+
 	local data
 
 	if type(saved) == "table" then
@@ -1688,8 +1695,23 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
-	-- Attempt to save before removing in-memory data.
-	savePlayer(player)
+	-- Loading and saving both yield. Wait briefly for an in-flight load to
+	-- finish before attempting the final save, otherwise a fast disconnect
+	-- could leave the session without ever saving its loaded data.
+	local loadDeadline = os.clock() + 12
+	while loadingPlayers[player] and os.clock() < loadDeadline do
+		task.wait(0.1)
+	end
+
+	if loadingPlayers[player] then
+		warn("[MythlingRealms] Timed out waiting for data load on leave: " .. player.Name)
+	else
+		-- Attempt to save before removing in-memory data.
+		local saved = savePlayer(player)
+		if not saved and playerData[player] then
+			warn("[MythlingRealms] Final save did not complete for " .. player.Name)
+		end
+	end
 
 	removePetVisual(player)
 
