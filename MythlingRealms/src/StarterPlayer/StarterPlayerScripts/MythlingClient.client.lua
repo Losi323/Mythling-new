@@ -2668,7 +2668,7 @@ if WheelResult:IsA("RemoteEvent") then
 		end
 
 		if thisVisual and thisVisual.Parent then
-			local targetRotation = thisVisual.Rotation + 1440 + ((5 - index) * 72)
+			local targetRotation = thisVisual.Rotation + 1440 + (((6 - index) % 5) * 72)
 			local tween = TweenService:Create(
 				thisVisual,
 				TweenInfo.new(3.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
